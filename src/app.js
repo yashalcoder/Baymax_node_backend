@@ -1,8 +1,9 @@
 import express from "express";
 import cors from "cors";
+import connectdb from "./config/db.js";
 import transcribeRoutes from "./routes/transcribeRoutes.js";
 const app = express();
-
+connectdb();
 app.use(cors());
 app.use(express.json());
 
