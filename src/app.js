@@ -24,8 +24,12 @@ app.use(express.json());
 app.use("/api/doctors", doctorRouter);
 app.use("/api/auth", authRoutes);
 
+
+
 app.get("/", (req, res) => {
-  res.json({ message: "Node API running successfully 🚀" });
+  res.json({ message: "Node API running successfully " });
 });
+
 app.use("/api", transcribeRoutes);
+app.use("/api/auth", authRoutes);
 export default app;

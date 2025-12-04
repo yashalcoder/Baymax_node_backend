@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
-import connectdb from "./config/db.js"; // import your DB connection
-import app from "./app.js"; // your Express app
+import connectdb from "./config/db.js"; 
+import app from "./app.js"; 
 
 dotenv.config();
 
@@ -13,7 +13,7 @@ const startServer = async () => {
 
   // Then start the server
   app.listen(PORT, () => {
-    console.log(`✅ Server running at http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
   });
 };
 
