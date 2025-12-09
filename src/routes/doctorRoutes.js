@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { authMiddleware } from "../middlewares/authMiddleware.js"; // JWT middleware
+import { authenticateToken } from "../middlewares/jwt.js";
 import {
   registerDoctor,
   getDoctors,
