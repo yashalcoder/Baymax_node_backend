@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      trim: true,
+    },
+
     email: {
       type: String,
       required: true,
@@ -17,27 +22,19 @@ const UserSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: [
-        "patient",
-        "doctor",
-        "admin",
-        "assistant",
-        "laboratory",
-        "pharmacy",
-      ], // you can expand roles if needed
-      default: "patient",
+      required: true,
+      enum: ["doctor", "patient", "assistant", "pharmacy", "laboratory"],
+    },
+
+    contact: {
+      type: String,
+      default: null,
     },
 
     address: {
       type: String,
       default: null,
     },
-    // Additional optional fields for patient signup
-    contact: { type: String },
-    address: { type: String },
-    allergies: { type: String },
-    bloodGroup: { type: String },
-    majorDisease: { type: String },
   },
   {
     timestamps: true,
