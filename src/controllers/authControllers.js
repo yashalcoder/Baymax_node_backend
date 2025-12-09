@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import Doctor from "../models/doctor.js";
+import Patient from "../models/Patient.js";
 import User from "../models/user.js";
 import { generateToken } from "../middlewares/jwt.js";
 
@@ -22,7 +23,8 @@ export const login = async (req, res) => {
     } else if (role === "patient") {
       user = await User.findOne({ email });
     } else {
-      return res.status(400).json({ status: "error", message: "Invalid role" });
+      // For patient, assistant, pharmacy, laboratory -> use User collection
+      user = await User.findOne({ email, role });
     }
     console.log("User found:", user);
     if (!user) {
@@ -32,7 +34,8 @@ export const login = async (req, res) => {
       });
     }
 
-    if (user.isActive === false) {
+    // Check isActive only if field exists (for doctor/patient models)
+    if (user.isActive !== undefined && user.isActive === false) {
       return res.status(403).json({
         status: "error",
         message: "Account is deactivated. Contact support.",
@@ -47,8 +50,16 @@ export const login = async (req, res) => {
       });
     }
 
-    user.lastLogin = new Date();
-    await user.save();
+    // Update lastLogin if field exists (for doctor/patient models)
+    try {
+      if (user.lastLogin !== undefined) {
+        user.lastLogin = new Date();
+        await user.save();
+      }
+    } catch (err) {
+      // Ignore if lastLogin field doesn't exist
+      console.log("lastLogin field not available for this user model");
+    }
 
     const token = generateToken(user);
     console.log("user logged in:", user);
@@ -65,6 +76,13 @@ export const login = async (req, res) => {
         contact: user.contact,
         role,
         token,
+      },
+      token,
+      user: {
+        id: user._id,
+        name: userName,
+        email: user.email,
+        role,
       },
     });
 

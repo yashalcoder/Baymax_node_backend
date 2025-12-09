@@ -9,10 +9,10 @@ const generateToken = (user) => {
   console.log("Generating token for user:", user);
   return jwt.sign(
     {
-      id: user._id,
+      id: user._id || user.id,
       email: user.email,
       role: user.role,
-      doctorId: user.doctorId || user.patientId,
+      doctorId: user.doctorId || user.patientId || null,
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRE }
