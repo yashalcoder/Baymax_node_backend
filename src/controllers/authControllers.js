@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import Doctor from "../models/doctor.js";
+import User from "../models/user.js";
 import { generateToken } from "../middlewares/jwt.js";
 
 // LOGIN
@@ -17,9 +18,9 @@ export const login = async (req, res) => {
     let user;
 
     if (role === "doctor") {
-      user = await Doctor.findOne({ email });
+      user = await User.findOne({ email });
     } else if (role === "patient") {
-      user = await Patient.findOne({ email });
+      user = await User.findOne({ email });
     } else {
       return res.status(400).json({ status: "error", message: "Invalid role" });
     }
@@ -49,20 +50,19 @@ export const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const token = generateToken({
-      id: user._id,
-      role,
-      doctorId: user.doctorId || null,
-    });
-
+    const token = generateToken(user);
+    console.log("user logged in:", user);
+    console.log("After login token:", token);
     res.json({
       status: "success",
       message: "Login successful",
       data: {
         _id: user._id,
         doctorId: user.doctorId || null,
-        name: `${user.firstName} ${user.lastName}`,
+        name: user.name,
         email: user.email,
+        address: user.address,
+        contact: user.contact,
         role,
         token,
       },
@@ -85,26 +85,48 @@ export const login = async (req, res) => {
 };
 
 // GET ME
+import mongoose from "mongoose";
+const { ObjectId } = mongoose.Types;
+
 export const getMe = async (req, res) => {
   try {
-    let user;
+    console.log("req.user:", req.user);
+
+    if (!req.user.id) {
+      return res
+        .status(400)
+        .json({ status: "error", message: "User ID missing in token" });
+    }
+
+    let userProfile;
 
     if (req.user.role === "doctor") {
-      user = await Doctor.findById(req.user.id).select("-password");
+      console.log("Fetching Doctor profile for userId:", req.user.id);
+
+      userProfile = await Doctor.findOne({
+        userId: new ObjectId(req.user.id),
+      }).select("-password");
+
+      if (!userProfile) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "Doctor profile not found" });
+      }
     } else {
-      user = await Patient.findById(req.user.id).select("-password");
+      userProfile = await Patient.findById(req.user.id).select("-password");
+      if (!userProfile) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "Patient profile not found" });
+      }
     }
 
-    if (!user) {
-      return res.status(404).json({ status: "error", message: "Not found" });
-    }
-
-    res.json({ status: "success", data: user });
-  } catch {
-    res.status(500).json({
-      status: "error",
-      message: "Failed to fetch user data",
-    });
+    res.json({ status: "success", data: userProfile });
+  } catch (error) {
+    console.error("Failed to fetch profile:", error);
+    res
+      .status(500)
+      .json({ status: "error", message: "Failed to fetch profile" });
   }
 };
 

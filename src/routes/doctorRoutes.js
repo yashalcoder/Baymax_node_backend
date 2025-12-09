@@ -13,11 +13,6 @@ const upload = multer({ dest: "uploads/" });
 
 doctorRouter.post("/register-doctor", upload.single("file"), registerDoctor);
 doctorRouter.get("/doctors", getDoctors);
-doctorRouter.put(
-  "/doctor/profile",
-  authenticateToken,
-
-  updateDoctorProfile
-);
+doctorRouter.put("/update/profile", authenticateToken, updateDoctorProfile);
 
 export default doctorRouter;
