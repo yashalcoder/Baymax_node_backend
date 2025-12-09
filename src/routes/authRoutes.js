@@ -10,9 +10,7 @@ authRoutes.post("/signup", signup);
 
 // Login route - uses authControllers.js
 authRoutes.post("/login", login);
-
-// Protected routes
-authRoutes.get("/me", authenticateToken, getMe);
+authRoutes.get("/profile", authenticateToken, getMe);
 authRoutes.post("/refresh-token", authenticateToken, refreshToken);
 
 export default authRoutes;

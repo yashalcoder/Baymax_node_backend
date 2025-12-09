@@ -27,6 +27,7 @@ const storage = multer.diskStorage({
 export const upload = multer({ storage });
 import fs from "fs";
 import axios from "axios";
+import { error } from "console";
 const generateVoiceEmbedding = async (filePath) => {
   try {
     console.log("\n" + "=".repeat(60));
@@ -106,7 +107,7 @@ export const registerDoctor = async (req, res) => {
       languages,
       bio,
     } = req.body;
-
+    console.log("Check name:", firstName, lastName);
     // Check if user exists
     let user = await User.findOne({ email });
     if (!user) {
@@ -114,6 +115,9 @@ export const registerDoctor = async (req, res) => {
         email,
         role: "doctor",
         password: await bcrypt.hash(password, 10),
+        name: `${firstName} ${lastName}`,
+        address: address || null,
+        contact: phone || null,
       });
       await user.save();
     } else {
@@ -235,7 +239,8 @@ export const registerDoctor = async (req, res) => {
     });
 
     await doctor.save();
-
+    console.log("firstname:", doctor.firstName);
+    console.log("lastname:", doctor.lastName);
     res.status(201).json({
       status: "success",
       message: "Doctor registered successfully",
@@ -273,9 +278,9 @@ export const getDoctors = async (req, res) => {
     });
   }
 };
-
 // UPDATE DOCTOR PROFILE
 export const updateDoctorProfile = async (req, res) => {
+  console.log("Update profile req.user:", req.user);
   try {
     const {
       firstName,
@@ -336,26 +341,37 @@ export const updateDoctorProfile = async (req, res) => {
         consultationFee,
       },
 
-      availability: availability ? JSON.parse(availability) : [],
-      languages: languages ? JSON.parse(languages) : [],
+      availability: Array.isArray(availability) ? availability : [],
+      languages: Array.isArray(languages) ? languages : [],
       bio,
     };
 
-    const updated = await Doctor.findByIdAndUpdate(
-      req.user.id,
+    console.log("Profile updates:", updates);
+
+    const updated = await Doctor.findOneAndUpdate(
+      { userId: req.user.id }, // <-- match by userId
       { $set: updates },
       { new: true }
     ).select("-password");
+
+    if (!updated) {
+      console.log("No Doctor found with this userId:", req.user.id);
+      return res.status(404).json({
+        status: "error",
+        message: "Doctor profile not found",
+      });
+    }
 
     res.json({
       status: "success",
       message: "Profile updated successfully",
       data: updated,
     });
-  } catch {
+  } catch (error) {
+    console.error("Failed to update profile:", error);
     res.status(500).json({
       status: "error",
-      message: "Failed to update profile",
+      message: error.message || "Failed to update profile",
     });
   }
 };

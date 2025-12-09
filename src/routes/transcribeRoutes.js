@@ -35,11 +35,13 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
     // Create FormData for FastAPI
     const formData = new FormData();
     // Change 'audio' to 'file' for FastAPI
+
     formData.append("file", req.file.buffer, {
       filename: req.file.originalname || "recording.webm",
       contentType: req.file.mimetype,
     });
-
+    formData.append("doctorId", req.body.doctorId);
+    console.log("Appended doctorId:", req.body.doctorId);
     // Send to FastAPI
     const response = await axios.post(
       `${FASTAPI_URL}/transcribe/audio`,

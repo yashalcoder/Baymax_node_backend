@@ -1,12 +1,7 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const UserSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     email: {
       type: String,
       required: true,
@@ -14,6 +9,12 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+
+    password: {
+      type: String,
+      required: true,
+    },
+
     role: {
       type: String,
       enum: [
@@ -23,12 +24,13 @@ const userSchema = new mongoose.Schema(
         "assistant",
         "laboratory",
         "pharmacy",
-      ], 
+      ], // you can expand roles if needed
       default: "patient",
     },
-    password: {
+
+    address: {
       type: String,
-      required: true, // optional if some users won't have password yet
+      default: null,
     },
     // Additional optional fields for patient signup
     contact: { type: String },
@@ -38,10 +40,8 @@ const userSchema = new mongoose.Schema(
     majorDisease: { type: String },
   },
   {
-    timestamps: true, // adds createdAt and updatedAt automatically
+    timestamps: true,
   }
 );
 
-const User = mongoose.model("User", userSchema);
-
-export default User;
+export default mongoose.model("User", UserSchema);

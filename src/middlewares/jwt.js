@@ -6,6 +6,7 @@ const JWT_SECRET =
 const JWT_EXPIRE = "7d"; // Token expires in 7 days
 import jwt from "jsonwebtoken";
 const generateToken = (user) => {
+  console.log("Generating token for user:", user);
   return jwt.sign(
     {
       id: user._id || user.id,
@@ -40,6 +41,7 @@ const authenticateToken = (req, res, next) => {
       });
     }
     req.user = user;
+    console.log("Authenticated user:", user);
     next();
   });
 };

@@ -21,18 +21,6 @@ doctorRouter.post("/register-doctor", upload.single("file"), registerDoctor);
 
 // Get all doctors (public)
 doctorRouter.get("/doctors", getDoctors);
-
-// -----------------------------
-// PROTECTED ROUTES
-// -----------------------------
-
-// Update doctor profile (JWT protected & role-based)
-doctorRouter.put("/doctor/profile", authMiddleware, (req, res, next) => {
-  // Only allow doctors to update their profile
-  if (req.user.role !== "doctor") {
-    return res.status(403).json({ message: "Forbidden: Only doctors can update profile" });
-  }
-  next();
-}, updateDoctorProfile);
+doctorRouter.put("/update/profile", authenticateToken, updateDoctorProfile);
 
 export default doctorRouter;
