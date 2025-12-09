@@ -1,5 +1,7 @@
 import bcrypt from "bcryptjs";
 import Doctor from "../models/doctor.js";
+import Patient from "../models/Patient.js";
+import User from "../models/user.js";
 import { generateToken } from "../middlewares/jwt.js";
 
 // LOGIN
@@ -18,10 +20,9 @@ export const login = async (req, res) => {
 
     if (role === "doctor") {
       user = await Doctor.findOne({ email });
-    } else if (role === "patient") {
-      user = await Patient.findOne({ email });
     } else {
-      return res.status(400).json({ status: "error", message: "Invalid role" });
+      // For patient, assistant, pharmacy, laboratory -> use User collection
+      user = await User.findOne({ email, role });
     }
     console.log("User found:", user);
     if (!user) {
@@ -31,7 +32,8 @@ export const login = async (req, res) => {
       });
     }
 
-    if (user.isActive === false) {
+    // Check isActive only if field exists (for doctor/patient models)
+    if (user.isActive !== undefined && user.isActive === false) {
       return res.status(403).json({
         status: "error",
         message: "Account is deactivated. Contact support.",
@@ -46,8 +48,16 @@ export const login = async (req, res) => {
       });
     }
 
-    user.lastLogin = new Date();
-    await user.save();
+    // Update lastLogin if field exists (for doctor/patient models)
+    try {
+      if (user.lastLogin !== undefined) {
+        user.lastLogin = new Date();
+        await user.save();
+      }
+    } catch (err) {
+      // Ignore if lastLogin field doesn't exist
+      console.log("lastLogin field not available for this user model");
+    }
 
     const token = generateToken({
       id: user._id,
@@ -55,16 +65,31 @@ export const login = async (req, res) => {
       doctorId: user.doctorId || null,
     });
 
+    // Get user name based on role
+    let userName = user.name;
+    if (role === "doctor" && user.firstName && user.lastName) {
+      userName = `${user.firstName} ${user.lastName}`;
+    } else if (user.name) {
+      userName = user.name;
+    }
+
     res.json({
       status: "success",
       message: "Login successful",
       data: {
         _id: user._id,
         doctorId: user.doctorId || null,
-        name: `${user.firstName} ${user.lastName}`,
+        name: userName,
         email: user.email,
         role,
         token,
+      },
+      token,
+      user: {
+        id: user._id,
+        name: userName,
+        email: user.email,
+        role,
       },
     });
 
