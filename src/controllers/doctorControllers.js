@@ -143,7 +143,7 @@ export const registerDoctor = async (req, res) => {
 
     // Original path from multer
     let voiceAudioPath = req.file ? req.file.path : null;
-
+console.log("Uploaded file path:", voiceAudioPath);
     if (!voiceAudioPath) {
       return res.status(400).json({
         status: "error",

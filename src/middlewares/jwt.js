@@ -2,8 +2,8 @@
 // JWT HELPER FUNCTIONS
 // ============================================
 const JWT_SECRET =
-  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
-const JWT_EXPIRE = "7d"; // Token expires in 7 days
+  process.env.JWT_SECRET || "super-secret-jwt-key";
+const JWT_EXPIRE = "14d"; // Token expires in 7 days
 import jwt from "jsonwebtoken";
 const generateToken = (user) => {
   console.log("Generating token for user:", user);
