@@ -1,10 +1,13 @@
 import bcrypt from "bcryptjs";
-import Doctor from "../models/doctor.js";
+import Doctor from "../models/Doctor.js";
 import Patient from "../models/Patient.js";
+import Pharmacy from "../models/Pharmacy.js";
+import Laboratory from "../models/Laboratory.js";
+import Assistant from "../models/Assistant.js";
 import User from "../models/user.js";
 import { generateToken } from "../middlewares/jwt.js";
 
-// LOGIN
+// LOGIN (role-aware)
 export const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -16,16 +19,8 @@ export const login = async (req, res) => {
       });
     }
 
-    let user;
-
-    if (role === "doctor") {
-      user = await User.findOne({ email });
-    } else if (role === "patient") {
-      user = await User.findOne({ email });
-    } else {
-      // For patient, assistant, pharmacy, laboratory -> use User collection
-      user = await User.findOne({ email, role });
-    }
+    // Always trust the DB for role, not the client
+    const user = await User.findOne({ email });
     console.log("User found:", user);
     if (!user) {
       return res.status(401).json({
@@ -69,12 +64,11 @@ export const login = async (req, res) => {
       message: "Login successful",
       data: {
         _id: user._id,
-        doctorId: user.doctorId || null,
         name: user.name,
         email: user.email,
         address: user.address,
         contact: user.contact,
-        role,
+        role: user.role,
         token,
       },
       token,
@@ -82,7 +76,7 @@ export const login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role,
+        role: user.role,
       },
     });
 
@@ -102,7 +96,7 @@ export const login = async (req, res) => {
   }
 };
 
-// GET ME
+// GET ME - unified profile by role
 import mongoose from "mongoose";
 const { ObjectId } = mongoose.Types;
 
@@ -116,30 +110,68 @@ export const getMe = async (req, res) => {
         .json({ status: "error", message: "User ID missing in token" });
     }
 
-    let userProfile;
-
-    if (req.user.role === "doctor") {
-      console.log("Fetching Doctor profile for userId:", req.user.id);
-
-      userProfile = await Doctor.findOne({
-        userId: new ObjectId(req.user.id),
-      }).select("-password");
-
-      if (!userProfile) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "Doctor profile not found" });
-      }
-    } else {
-      userProfile = await Patient.findById(req.user.id).select("-password");
-      if (!userProfile) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "Patient profile not found" });
-      }
+    const baseUser = await User.findById(req.user.id).select(
+      "-password -createdAt -updatedAt -__v"
+    );
+    if (!baseUser) {
+      return res
+        .status(404)
+        .json({ status: "error", message: "User not found" });
     }
 
-    res.json({ status: "success", data: userProfile });
+    let roleProfile = null;
+
+    switch (req.user.role) {
+      case "doctor":
+        console.log("Fetching Doctor profile for userId:", req.user.id);
+        roleProfile = await Doctor.findOne({
+          userId: new ObjectId(req.user.id),
+        });
+        break;
+
+      case "patient":
+        roleProfile = await Patient.findOne({
+          userId: new ObjectId(req.user.id),
+        });
+        break;
+
+      case "pharmacy":
+        roleProfile = await Pharmacy.findOne({
+          userId: new ObjectId(req.user.id),
+        });
+        break;
+
+      case "laboratory":
+        roleProfile = await Laboratory.findOne({
+          userId: new ObjectId(req.user.id),
+        });
+        break;
+
+      case "assistant":
+        roleProfile = await Assistant.findOne({
+          userId: new ObjectId(req.user.id),
+        });
+        break;
+
+      default:
+        break;
+    }
+
+    if (!roleProfile) {
+      return res.status(404).json({
+        status: "error",
+        message: `${req.user.role} profile not found`,
+      });
+    }
+
+    res.json({
+      status: "success",
+      data: {
+        user: baseUser,
+        profile: roleProfile,
+        role: req.user.role,
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch profile:", error);
     res

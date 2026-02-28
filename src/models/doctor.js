@@ -66,7 +66,90 @@ const DoctorSchema = new mongoose.Schema(
 
 const Doctor = mongoose.model("Doctor", DoctorSchema);
 
-export default Doctor;
+export default mongoose.models.Doctor ||
+  mongoose.model("Doctor", DoctorSchema);
+
+// import mongoose from "mongoose";
+
+// const DoctorSchema = new mongoose.Schema(s
+//   {
+//     userId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "User",
+//       required: true,
+//     },
+
+//     firstName: String,
+//     lastName: String,
+//     email: String,
+//     phone: String,
+//     alternatePhone: String,
+
+//     dateOfBirth: String,
+//     gender: String,
+
+//     address: {
+//       street: String,
+//       city: String,
+//       state: String,
+//       zipCode: String,
+//       country: String,
+//     },
+
+//     medicalQualifications: {
+//       degree: String,
+//       university: String,
+//       graduationYear: Number,
+//       licenseNumber: String,
+//       licenseState: String,
+//       licenseExpiry: String,
+//     },
+
+//     professional: {
+//       specialization: String,
+//       subSpecialization: String,
+//       experience: String,
+//       currentHospital: String,
+//       consultationFee: Number,
+//     },
+
+//     // 🔗 RELATIONSHIP
+//     patientsAssigned: [
+//       {
+//         type: mongoose.Schema.Types.ObjectId,
+//         ref: "Patient",
+//       },
+//     ],
+
+//     assignedByAssistant: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Assistant",
+//     },
+
+//     availability: [
+//       {
+//         day: String,
+//         from: String,
+//         to: String,
+//       },
+//     ],
+
+//     languages: [String],
+//     bio: String,
+
+//     voiceFingerprint: {
+//       audioPath: String,
+//     },
+
+//     password: String,
+//     doctorId: String,
+//   },
+//   { timestamps: true }
+// );
+
+// // ✅ SAFE EXPORT (THIS LINE FIXES YOUR ERROR)
+// export default mongoose.models.Doctor ||
+//   mongoose.model("Doctor", DoctorSchema);
 
 // import mongoose from "mongoose";
 

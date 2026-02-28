@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import Doctor from "../models/doctor.js";
+import Doctor from "../models/Doctor.js";
 import User from "../models/user.js";
 import ffmpeg from "fluent-ffmpeg";
 import path from "path";
