@@ -9,6 +9,8 @@ import pharmacyRouter from "./routes/pharmacyRoutes.js";
 import laboratoryRouter from "./routes/laboratoryRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import transcribeRoutes from "./routes/transcribeRoutes.js";
+import patientRoutes from "./routes/patientRoutes.js";
+
 
 const app = express();
 connectdb();
@@ -27,6 +29,7 @@ app.use("/api/assistants", assistantRouter);
 app.use("/api/pharmacy", pharmacyRouter);
 app.use("/api/laboratory", laboratoryRouter);
 app.use("/api", transcribeRoutes);
+app.use("/api/patient", patientRoutes);
 
 // Root route
 app.get("/", (req, res) => {
