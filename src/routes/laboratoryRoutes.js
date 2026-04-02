@@ -1,86 +1,37 @@
-
 import express from "express";
 import { authMiddleware } from "../middlewares/jwt.js";
-import Laboratory from "../models/Laboratory.js";
 import {
+  getAllLaboratories,
+  getLabTests,
+  getNearbyLaboratories,
   getLabProfile,
+  getTests,
   addTest,
   updateTest,
-  getTests,
 } from "../controllers/laboratoryController.js";
 
 const router = express.Router();
 
-// ---------------------------
-// PROTECTED ROUTES
-// ---------------------------
-
-// Get lab profile
-router.get("/profile", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
+// Reusable role guard — only lab accounts pass through
+const labOnly = (req, res, next) => {
+  if (req.user?.role !== "laboratory")
+    return res.status(403).json({ message: "Forbidden: lab accounts only" });
   next();
-}, getLabProfile);
+};
 
-// Get all tests
-router.get("/tests", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
-  next();
-}, getTests);
+// ─────────────────────────────────────────────
+// PUBLIC  (patients / no auth required)
+// ─────────────────────────────────────────────
+router.get("/",       getAllLaboratories);     // GET /api/laboratories
+router.get("/tests",  getLabTests);            // GET /api/laboratories/tests
+router.get("/nearby", getNearbyLaboratories);  // GET /api/laboratories/nearby?lat=&lng=&tests=
 
-// Add new test
-router.post("/test", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
-  next();
-}, addTest);
-
-// Update test by ID
-router.put("/test/:testId", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
-  next();
-}, updateTest);
-
-// ===========================
-// PATIENT / PUBLIC ROUTE
-// ===========================
-
-// NEARBY LABORATORIES (PATIENT SIDE)
-// Ex: GET /api/laboratory/nearby?lat=..&lng=..&tests=CBC,TSH
-router.get("/nearby", async (req, res) => {
-  try {
-    const { lat, lng, tests } = req.query;
-
-    if (!lat || !lng || !tests) {
-      return res.status(400).json({ message: "Missing parameters" });
-    }
-
-    const testList = String(tests)
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    if (testList.length === 0) {
-      return res.status(400).json({ message: "Missing parameters" });
-    }
-
-    const laboratories = await Laboratory.find({
-      location: {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [parseFloat(lng), parseFloat(lat)],
-          },
-          $maxDistance: 3000,
-        },
-      },
-      "tests.name": { $in: testList },
-      "tests.available": true,
-    }).select("labName location tests address");
-
-    res.json(laboratories);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+// ─────────────────────────────────────────────
+// PROTECTED  (lab owner — auth + role check)
+// ─────────────────────────────────────────────
+router.get ("/profile",                authMiddleware, labOnly, getLabProfile);  // GET    /api/laboratories/profile
+router.get ("/profile/tests",          authMiddleware, labOnly, getTests);       // GET    /api/laboratories/profile/tests
+router.post("/profile/tests",          authMiddleware, labOnly, addTest);        // POST   /api/laboratories/profile/tests
+router.put ("/profile/tests/:testId",  authMiddleware, labOnly, updateTest);     // PUT    /api/laboratories/profile/tests/:testId
 
 export default router;

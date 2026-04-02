@@ -1,16 +1,24 @@
 import express from "express";
 import { authenticateToken } from "../middlewares/jwt.js";
-import { login, getMe, refreshToken } from "../controllers/authControllers.js";
-import { signup } from "../controllers/authController.js";
+import {
+  signup,
+  login,
+  getMe,
+  updateProfile,
+  refreshToken,
+  changePassword,
+} from "../controllers/authController.js";
 
 const authRoutes = express.Router();
 
-// Signup route - uses authController.js
-authRoutes.post("/signup", signup);
+// ── Public routes — no token needed ──────────────────────────────────────────
+authRoutes.post("/signup",          signup);
+authRoutes.post("/login",           login);
 
-// Login route - uses authControllers.js
-authRoutes.post("/login", login);
-authRoutes.get("/profile", authenticateToken, getMe);
-authRoutes.post("/refresh-token", authenticateToken, refreshToken);
+// ── Protected routes — valid JWT required ─────────────────────────────────────
+authRoutes.get( "/profile",         authenticateToken, getMe);
+authRoutes.put( "/profile",         authenticateToken, updateProfile);   // ← NEW: update name/contact/address
+authRoutes.post("/refresh-token",   authenticateToken, refreshToken);
+authRoutes.put( "/change-password", authenticateToken, changePassword);
 
 export default authRoutes;
