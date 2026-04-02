@@ -1,4 +1,3 @@
-// models/MedicalReport.js
 import mongoose from "mongoose";
 
 const medicalReportSchema = new mongoose.Schema(
@@ -9,13 +8,13 @@ const medicalReportSchema = new mongoose.Schema(
       required: true,
     },
 
-    extractedData: {
-      extracted_text: String,
-      medical_terms: [String],
-      medicines: [String],
-      diagnoses: [String],
-      dosages: [String],
-    },
+   extractedData: {
+  extracted_text: String,
+  medical_terms: [String],
+  medicines: [String],
+  diagnoses: [String],
+  doctor_notes: [String],
+},
 
     filePath: String,
   },
