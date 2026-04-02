@@ -1,39 +1,48 @@
-import express from "express";
-import cors from "cors";
-import connectdb from "./config/db.js";
-import path from "path";
-import doctorRouter from "./routes/doctorRoutes.js";
-import patientRouter from "./routes/patientRoutes.js";
+import express         from "express";
+import cors            from "cors";
+import path            from "path";
+import authRoutes      from "./routes/authRoutes.js";
+import doctorRouter    from "./routes/doctorRoutes.js";
+import patientRouter   from "./routes/patientRoutes.js";
 import assistantRouter from "./routes/assistantRoutes.js";
-import pharmacyRouter from "./routes/pharmacyRoutes.js";
+import pharmacyRouter  from "./routes/pharmacyRoutes.js";
 import laboratoryRouter from "./routes/laboratoryRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
 import transcribeRoutes from "./routes/transcribeRoutes.js";
-import patientRoutes from "./routes/patientRoutes.js";
 
 
 const app = express();
-connectdb();
 
+// ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 
-// Serve uploads folder
+// ── Static files ──────────────────────────────────────────────────────────────
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/doctors", doctorRouter);
-app.use("/api/patients", patientRouter);
-app.use("/api/assistants", assistantRouter);
-app.use("/api/pharmacy", pharmacyRouter);
-app.use("/api/laboratory", laboratoryRouter);
-app.use("/api", transcribeRoutes);
-app.use("/api/patient", patientRoutes);
+// ── API Routes ────────────────────────────────────────────────────────────────
+app.use("/api/auth",       authRoutes);       // signup, login, profile, refresh-token, change-password
+app.use("/api/doctors",    doctorRouter);
+app.use("/api/patient",   patientRouter);    // admin/doctor: list & get patients
+app.use("/api/assistants", assistantRouter);  // assistant dashboard, search, vitals
+app.use("/api/pharmacies",   pharmacyRouter);
+app.use("/api/laboratories", laboratoryRouter);
+app.use("/api",            transcribeRoutes);
 
-// Root route
-app.get("/", (req, res) => {
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get("/", (_req, res) => {
   res.json({ message: "Node API running successfully" });
+});
+
+// ── 404 fallback ──────────────────────────────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).json({ status: "error", message: "Route not found" });
+});
+
+// ── Global error handler ──────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ status: "error", message: err.message || "Internal server error" });
 });
 
 export default app;

@@ -1,63 +1,29 @@
 import express from "express";
 import { authMiddleware } from "../middlewares/jwt.js";
 import {
-  getAllPatients,
-  getPatientById,
   getMyPatientDashboard,
+  getMyPrescriptions,
+  downloadPrescriptionPDF,
+  exportMedicalHistoryPDF,
 } from "../controllers/patientController.js";
-import { getMedicalHistory } from "../controllers/medicalHistoryController.js";
+import { getMyMedicalHistory } from "../controllers/medicalHistoryController.js";
 
 const router = express.Router();
 
-/**
- * ============================
- * Patient Dashboard
- * ============================
- * @route GET /api/patient/dashboard
- * Returns real data from DB for the logged-in patient
- */
-router.get(
-  "/dashboard",
-  authMiddleware,
-  (req, res, next) => {
-    if (req.user.role !== "patient") {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-    next();
-  },
-  getMyPatientDashboard
-);
+// All patient routes require auth
+router.get("/dashboard",                            authMiddleware, getMyPatientDashboard);
 
-/**
- * ============================
- * View Medical History (Patient)
- * ============================
- * @route   GET /api/patient/medical-history/:patientId
- */
-router.get(
-  "/medical-history/:patientId",
-  authMiddleware,
-  (req, res, next) => {
-    if (req.user.role !== "patient") {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-    next();
-  },
-  getMedicalHistory
-);
+// ── Prescriptions ─────────────────────────────────────────────────────────────
+// FIX: frontend calls /api/patient/my-prescriptions  (was /prescriptions)
+router.get("/my-prescriptions",                     authMiddleware, getMyPrescriptions);
 
-/**
- * ============================
- * Get All Patients (Admin/Doctor)
- * ============================
- */
-router.get("/", authMiddleware, getAllPatients);
+// FIX: frontend calls /api/patient/prescription/:id/pdf  (was /prescriptions/:id/download)
+router.get("/prescription/:prescriptionId/pdf",     authMiddleware, downloadPrescriptionPDF);
 
-/**
- * ============================
- * Get Single Patient
- * ============================
- */
-router.get("/:id", authMiddleware, getPatientById);
+// ── Medical History ───────────────────────────────────────────────────────────
+// GET /api/patient/my-medical-history  — patient views their own records
+router.get("/my-medical-history",                   authMiddleware, getMyMedicalHistory);
+// GET /api/patient/medical-history/export  — unchanged, backend was already correct
+router.get("/medical-history/export",               authMiddleware, exportMedicalHistoryPDF);
 
 export default router;
