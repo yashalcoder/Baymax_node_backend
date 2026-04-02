@@ -11,7 +11,6 @@ import { generateToken } from "../middlewares/jwt.js";
 export const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
-
     if (!email || !password || !role) {
       return res.status(400).json({
         status: "error",
@@ -36,8 +35,14 @@ export const login = async (req, res) => {
         message: "Account is deactivated. Contact support.",
       });
     }
+const testHash = await bcrypt.hash("Yashal@123", 10);
+console.log("New Hash:", testHash);
 
+const check = await bcrypt.compare("Yashal@123", testHash);
+console.log("Test Compare:", check);
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log("Password valid:", isPasswordValid);
+
     if (!isPasswordValid) {
       return res.status(401).json({
         status: "error",

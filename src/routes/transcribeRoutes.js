@@ -2,7 +2,8 @@ import express from "express";
 import multer from "multer";
 import axios from "axios";
 import FormData from "form-data";
-
+import { authenticateToken } from "../middlewares/jwt.js";
+import Doctor from "../models/doctor.js";
 const router = express.Router();
 
 // Multer config for handling file uploads in memory
@@ -15,8 +16,8 @@ const upload = multer({
 
 const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
 
-// Handle file upload from frontend
-router.post("/transcribe", upload.single("audio"), async (req, res) => {
+
+router.post("/transcribe", authenticateToken, upload.single("audio"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -25,48 +26,49 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
       });
     }
 
-    console.log(
-      "Received file:",
-      req.file.originalname,
-      "Size:",
-      req.file.size
-    );
+    console.log("Received file:", req.file.originalname, "Size:", req.file.size);
 
-    // Create FormData for FastAPI
+    // ← Yeh add karo — JWT se doctor nikalo
+    const doctorUserId = req.user.id;
+    const doctor = await Doctor.findOne({ userId: doctorUserId });
+    
+    if (!doctor) {
+      return res.status(404).json({
+        status: "error",
+        message: "Doctor profile not found"
+      });
+    }
+
+    console.log("Doctor found:", doctor._id, "userId:", doctor.userId);
+
     const formData = new FormData();
-    // Change 'audio' to 'file' for FastAPI
-
     formData.append("file", req.file.buffer, {
       filename: req.file.originalname || "recording.webm",
       contentType: req.file.mimetype,
     });
-    formData.append("doctorId", req.body.doctorId);
-    console.log("Appended doctorId:", req.body.doctorId);
-    // Send to FastAPI
+    
+    // ← Fix — doctor.userId pass karo, req.body.doctorId nahi
+    formData.append("doctor_id", doctor.userId.toString());
+    formData.append("patient_id", req.body.patientId);
+    console.log("Patient ID from request body:", req.body.patientId);
     const response = await axios.post(
-      `${FASTAPI_URL}/transcribe/audio`,
+      `${FASTAPI_URL}/consultation/start`,
       formData,
       {
-        headers: {
-          ...formData.getHeaders(),
-        },
+        headers: { ...formData.getHeaders() },
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
       }
     );
 
+    console.log("✅ FastAPI response:", response.data);
     return res.json(response.data);
+
   } catch (error) {
-    console.error(
-      "❌ Error calling FastAPI:",
-      error.response?.data || error.message
-    );
+    console.error("❌ Error:", error.response?.data || error.message);
     return res.status(500).json({
       status: "error",
-      message:
-        error.response?.data?.message ||
-        error.message ||
-        "Transcription failed",
+      message: error.response?.data?.message || error.message || "Transcription failed",
     });
   }
 });

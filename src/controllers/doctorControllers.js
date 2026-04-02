@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
-import Doctor from "../models/Doctor.js";
+import Doctor from "../models/doctor.js";
+import Patient from "../models/Patient.js";
 import User from "../models/user.js";
 import ffmpeg from "fluent-ffmpeg";
 import path from "path";
@@ -239,6 +240,8 @@ console.log("Uploaded file path:", voiceAudioPath);
     });
 
     await doctor.save();
+console.log("✅ Doctor saved to DB:", doctor._id);
+console.log("Doctor userId:", doctor.userId);
     console.log("firstname:", doctor.firstName);
     console.log("lastname:", doctor.lastName);
     res.status(201).json({
@@ -373,5 +376,42 @@ export const updateDoctorProfile = async (req, res) => {
       status: "error",
       message: error.message || "Failed to update profile",
     });
+  }
+};
+export const getAssignedPatients = async (req, res) => {
+  try {
+    const doctorUserId = req.user.id;
+
+    const doctor = await Doctor.findOne({ userId: doctorUserId });
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    const patients = await Patient.find({
+      assignedDoctor: doctor._id
+    }).populate("userId", "name email contact address");
+
+    const formatted = patients.map(p => ({
+      patientId: p._id,
+      fullName: p.userId?.name,
+      email: p.userId?.email,
+      contact: p.userId?.contact,
+      address: p.userId?.address,
+      bloodGroup: p.bloodGroup,
+      allergies: p.allergies,
+      majorDisease: p.majorDisease,
+      currentMedications: p.currentMedications,
+      latestVitals: p.vitals?.slice(-1)[0] || null,
+      assignedAt: p.createdAt
+    }));
+
+    res.json({
+      status: "success",
+      count: formatted.length,
+      data: formatted
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

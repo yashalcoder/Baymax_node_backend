@@ -25,6 +25,7 @@ export const getMedicines = async (req, res) => {
 // Add new medicine
 export const addMedicine = async (req, res) => {
   try {
+    console.log("in conroller");
     const pharmacy = await Pharmacy.findOne({ userId: req.user.id });
     if (!pharmacy) return res.status(404).json({ message: "Pharmacy not found" });
 

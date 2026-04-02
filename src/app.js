@@ -10,8 +10,9 @@ import laboratoryRouter from "./routes/laboratoryRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import transcribeRoutes from "./routes/transcribeRoutes.js";
 import patientRoutes from "./routes/patientRoutes.js";
-
-
+import diagnosisRoutes from "./routes/diagnosisRoutes.js";
+import prescription from "./routes/prescription.js";
+import ocrRoute from "./routes/ocr.js";
 const app = express();
 connectdb();
 
@@ -30,8 +31,9 @@ app.use("/api/pharmacy", pharmacyRouter);
 app.use("/api/laboratory", laboratoryRouter);
 app.use("/api", transcribeRoutes);
 app.use("/api/patient", patientRoutes);
-
-// Root route
+app.use('/api/diagnosis', diagnosisRoutes);
+app.use('/api/prescription', prescription);
+app.use('/api/',ocrRoute);
 app.get("/", (req, res) => {
   res.json({ message: "Node API running successfully" });
 });

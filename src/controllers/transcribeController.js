@@ -14,3 +14,11 @@ export const handleTranscription = async (audioUrl) => {
     throw new Error("FastAPI request failed");
   }
 };
+export const getSymptomps=async()=>{
+  try{
+
+  }catch
+  {
+    
+  }
+}
