@@ -23,12 +23,11 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/doctors", doctorRouter);
-app.use("/api/patients", patientRouter);
+app.use("/api/patients", patientRoutes);
 app.use("/api/assistants", assistantRouter);
 app.use("/api/pharmacies", pharmacyRouter);
 app.use("/api/laboratories", laboratoryRouter);
 app.use("/api", transcribeRoutes);
-app.use("/api/patient", patientRoutes);
 app.use('/api/diagnosis', diagnosisRoutes);
 app.use('/api/prescription', prescription);
 app.use('/api/ocr', ocrRoute);

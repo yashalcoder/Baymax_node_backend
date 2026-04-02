@@ -8,7 +8,6 @@ import sharp from "sharp";
 import pdfPoppler from "pdf-poppler";
 
 import MedicalReport from "../models/MedicalReport.js";
-import Patient from "../models/Patient.js";
 
 // =============================================================================
 // GET MEDICAL HISTORY FOR A PATIENT  (by patientId param — doctor / assistant)
