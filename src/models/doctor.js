@@ -2,18 +2,12 @@ import mongoose from "mongoose";
 
 const DoctorSchema = new mongoose.Schema(
   {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     firstName: { type: String },
     lastName: { type: String },
     email: { type: String },
     phone: { type: String },
     alternatePhone: { type: String },
-
     dateOfBirth: { type: String },
     gender: { type: String },
 
@@ -41,32 +35,119 @@ const DoctorSchema = new mongoose.Schema(
       currentHospital: { type: String },
       consultationFee: { type: Number },
     },
+
+    // Assigned patients — API mein use ho raha tha
+    patientsAssigned: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Patient" 
+    }],
+
     voice_fingerprint: { type: [Number], default: [] },
+    
     availability: [
       {
-        day: { type: String }, // Example: Monday
-        from: { type: String }, // Example: "09:00"
-        to: { type: String }, // Example: "17:00"
+        day: { type: String },
+        from: { type: String },
+        to: { type: String },
       },
     ],
 
     languages: [{ type: String }],
-
     bio: { type: String },
 
     voiceFingerprint: {
       audioPath: { type: String },
     },
 
-    password: { type: String }, // hashed password (backend auto)
+    password: { type: String },
     doctorId: { type: String },
   },
   { timestamps: true }
 );
 
-const Doctor = mongoose.model("Doctor", DoctorSchema);
+export default mongoose.models.Doctor || mongoose.model("Doctor", DoctorSchema);
 
-export default Doctor;
+// import mongoose from "mongoose";
+
+// const DoctorSchema = new mongoose.Schema(s
+//   {
+//     userId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "User",
+//       required: true,
+//     },
+
+//     firstName: String,
+//     lastName: String,
+//     email: String,
+//     phone: String,
+//     alternatePhone: String,
+
+//     dateOfBirth: String,
+//     gender: String,
+
+//     address: {
+//       street: String,
+//       city: String,
+//       state: String,
+//       zipCode: String,
+//       country: String,
+//     },
+
+//     medicalQualifications: {
+//       degree: String,
+//       university: String,
+//       graduationYear: Number,
+//       licenseNumber: String,
+//       licenseState: String,
+//       licenseExpiry: String,
+//     },
+
+//     professional: {
+//       specialization: String,
+//       subSpecialization: String,
+//       experience: String,
+//       currentHospital: String,
+//       consultationFee: Number,
+//     },
+
+//     // 🔗 RELATIONSHIP
+//     patientsAssigned: [
+//       {
+//         type: mongoose.Schema.Types.ObjectId,
+//         ref: "Patient",
+//       },
+//     ],
+
+//     assignedByAssistant: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Assistant",
+//     },
+
+//     availability: [
+//       {
+//         day: String,
+//         from: String,
+//         to: String,
+//       },
+//     ],
+
+//     languages: [String],
+//     bio: String,
+
+//     voiceFingerprint: {
+//       audioPath: String,
+//     },
+
+//     password: String,
+//     doctorId: String,
+//   },
+//   { timestamps: true }
+// );
+
+// // ✅ SAFE EXPORT (THIS LINE FIXES YOUR ERROR)
+// export default mongoose.models.Doctor ||
+//   mongoose.model("Doctor", DoctorSchema);
 
 // import mongoose from "mongoose";
 

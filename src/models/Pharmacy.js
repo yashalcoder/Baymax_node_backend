@@ -1,19 +1,20 @@
 import mongoose from "mongoose";
 
 const medicineSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // e.g., Paracetamol
-  brand: { type: String },                // e.g., Panadol
-  dosageForm: { type: String },          // e.g., tablet, syrup
-  strength: { type: String },            // e.g., 500mg
+  name: { type: String, required: true },
+  brand: { type: String },
+  dosageForm: { type: String },
+  strength: { type: String },
   price: { type: Number, required: true },
   quantityAvailable: { type: Number, default: 0 },
-  expiryDate: { type: Date },             // optional but useful
+  expiryDate: { type: Date },
   lastUpdated: { type: Date, default: Date.now },
 });
 
 const pharmacySchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   pharmacyName: { type: String, required: true },
+  contactNumber: { type: String, required: true },
   address: {
     street: String,
     city: String,
@@ -21,9 +22,9 @@ const pharmacySchema = new mongoose.Schema({
     zipCode: String,
     country: String,
   },
-  location: { 
+  location: {
     type: { type: String, default: "Point" },
-    coordinates: { type: [Number], default: [0, 0] }, // [longitude, latitude]
+    coordinates: { type: [Number], default: [0, 0] },
   },
   medicines: [medicineSchema],
   createdAt: { type: Date, default: Date.now },

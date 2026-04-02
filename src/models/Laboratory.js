@@ -1,18 +1,20 @@
 import mongoose from "mongoose";
 
 const testSchema = new mongoose.Schema({
-  name: { type: String, required: true },       // e.g., Complete Blood Count
-  category: { type: String },                   // e.g., Hematology
+  name: { type: String, required: true },
+  category: { type: String },
   price: { type: Number, required: true },
-  available: { type: Boolean, default: true },  
-  normalRange: { type: String },               // e.g., 4.5-11.0 x10^9/L
-  units: { type: String },                      // e.g., x10^9/L
+  available: { type: Boolean, default: true },
+  normalRange: { type: String },
+  units: { type: String },
   lastUpdated: { type: Date, default: Date.now },
 });
 
 const laboratorySchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   labName: { type: String, required: true },
+  ownerName: { type: String, required: true },
+  contactNumber: { type: String, required: true },
   address: {
     street: String,
     city: String,
@@ -20,7 +22,7 @@ const laboratorySchema = new mongoose.Schema({
     zipCode: String,
     country: String,
   },
-  location: { 
+  location: {
     type: { type: String, default: "Point" },
     coordinates: { type: [Number], default: [0, 0] },
   },

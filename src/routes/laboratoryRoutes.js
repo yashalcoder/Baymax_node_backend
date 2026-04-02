@@ -1,41 +1,34 @@
-
 import express from "express";
-import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { authenticateToken } from "../middlewares/jwt.js";
 import {
   getLabProfile,
   addTest,
   updateTest,
   getTests,
+  deleteTest,
+  updateLabLocation,
+  searchLabTests,
 } from "../controllers/laboratoryController.js";
 
 const router = express.Router();
 
-// ---------------------------
-// PROTECTED ROUTES
-// ---------------------------
-
-// Get lab profile
-router.get("/profile", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
+const isLab = (req, res, next) => {
+  if (req.user.role !== "laboratory")
+    return res.status(403).json({ message: "Forbidden" });
   next();
-}, getLabProfile);
+};
 
-// Get all tests
-router.get("/tests", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
-  next();
-}, getTests);
+// Lab profile
+router.get("/profile", authenticateToken, isLab, getLabProfile);
+router.patch("/profile/location", authenticateToken, isLab, updateLabLocation);
 
-// Add new test
-router.post("/test", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
-  next();
-}, addTest);
+// Test catalog
+router.get("/tests", authenticateToken, isLab, getTests);
+router.post("/test", authenticateToken, isLab, addTest);
+router.put("/test/:testId", authenticateToken, isLab, updateTest);
+router.delete("/test/:testId", authenticateToken, isLab, deleteTest);
 
-// Update test by ID
-router.put("/test/:testId", authMiddleware, (req, res, next) => {
-  if (req.user.role !== "laboratory") return res.status(403).json({ message: "Forbidden" });
-  next();
-}, updateTest);
+// Patient search — no auth needed
+router.get("/search", searchLabTests);
 
 export default router;
