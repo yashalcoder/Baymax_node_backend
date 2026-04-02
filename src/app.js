@@ -3,13 +3,14 @@ import cors            from "cors";
 import path            from "path";
 import authRoutes      from "./routes/authRoutes.js";
 import doctorRouter    from "./routes/doctorRoutes.js";
-import patientRouter   from "./routes/patientRoutes.js";
+import patientRoutes   from "./routes/patientRoutes.js";
 import assistantRouter from "./routes/assistantRoutes.js";
 import pharmacyRouter  from "./routes/pharmacyRoutes.js";
 import laboratoryRouter from "./routes/laboratoryRoutes.js";
 import transcribeRoutes from "./routes/transcribeRoutes.js";
-
-
+import diagnosisRoutes from "./routes/diagnosisRoutes.js";
+import prescription from "./routes/prescription.js";
+import ocrRoute from "./routes/ocr.js";
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
@@ -19,17 +20,19 @@ app.use(express.json());
 // ── Static files ──────────────────────────────────────────────────────────────
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// ── API Routes ────────────────────────────────────────────────────────────────
-app.use("/api/auth",       authRoutes);       // signup, login, profile, refresh-token, change-password
-app.use("/api/doctors",    doctorRouter);
-app.use("/api/patient",   patientRouter);    // admin/doctor: list & get patients
-app.use("/api/assistants", assistantRouter);  // assistant dashboard, search, vitals
-app.use("/api/pharmacies",   pharmacyRouter);
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/doctors", doctorRouter);
+app.use("/api/patients", patientRouter);
+app.use("/api/assistants", assistantRouter);
+app.use("/api/pharmacies", pharmacyRouter);
 app.use("/api/laboratories", laboratoryRouter);
-app.use("/api",            transcribeRoutes);
-
-// ── Health check ──────────────────────────────────────────────────────────────
-app.get("/", (_req, res) => {
+app.use("/api", transcribeRoutes);
+app.use("/api/patient", patientRoutes);
+app.use('/api/diagnosis', diagnosisRoutes);
+app.use('/api/prescription', prescription);
+app.use('/api/ocr', ocrRoute);
+app.get("/", (req, res) => {
   res.json({ message: "Node API running successfully" });
 });
 
