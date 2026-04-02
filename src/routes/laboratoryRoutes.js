@@ -1,11 +1,10 @@
 import express from "express";
-import { authMiddleware } from "../middlewares/jwt.js";
+import { authenticateToken } from "../middlewares/jwt.js";
 import {
   getAllLaboratories,
   getLabTests,
   getNearbyLaboratories,
   getLabProfile,
-  getTests,
   addTest,
   updateTest,
   getTests,
