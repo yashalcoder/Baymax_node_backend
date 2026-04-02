@@ -121,14 +121,15 @@ export const signup = async (req, res) => {
           if (location) {
             const coords = location.split(",").map((c) => parseFloat(c.trim()));
             if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
-              coordinates = [coords[1], coords[0]]; // [lng, lat] for GeoJSON
+              coordinates = [coords[1], coords[0]];
             }
           }
           await Pharmacy.create({
-            userId:       user._id,
-            pharmacyName: name,
-            address:      { street: address || "" },
-            location:     { type: "Point", coordinates },
+            userId:        user._id,
+            pharmacyName:  name,
+            contactNumber: contact || "",  // ✅ FR-7.1
+            address:       { street: address || "" },
+            location:      { type: "Point", coordinates },
           });
           break;
         }
@@ -142,10 +143,12 @@ export const signup = async (req, res) => {
             }
           }
           await Laboratory.create({
-            userId:  user._id,
-            labName: name,
-            address: { street: address || "" },
-            location: { type: "Point", coordinates },
+            userId:        user._id,
+            labName:       name,
+            ownerName:     name,           // ✅ FR-6.1
+            contactNumber: contact || "",  // ✅ FR-6.1
+            address:       { street: address || "" },
+            location:      { type: "Point", coordinates },
           });
           break;
         }

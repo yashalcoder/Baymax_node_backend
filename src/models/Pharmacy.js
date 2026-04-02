@@ -11,47 +11,20 @@ const medicineSchema = new mongoose.Schema({
   lastUpdated: { type: Date, default: Date.now },
 });
 
-const pharmacySchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true
-    },
-
-    pharmacyName: {
-      type: String,
-      required: true
-    },
-
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      zipCode: String,
-      country: String
-    },
-
-    //GEOJSON LOCATION
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],     // required
-        required: true,
-        default: "Point"
-      },
-      coordinates: {
-        type: [Number],      // [longitude, latitude]
-        required: true
-      }
-    },
-
-    medicines: [medicineSchema],
-
-    isOpen: {
-      type: Boolean,
-      default: true
-    }
+const pharmacySchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  pharmacyName: { type: String, required: true },
+  contactNumber: { type: String, required: true },
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String,
+  },
+  location: {
+    type: { type: String, default: "Point" },
+    coordinates: { type: [Number], default: [0, 0] },
   },
   { timestamps: true }
 );
