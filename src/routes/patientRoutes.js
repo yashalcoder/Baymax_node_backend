@@ -1,23 +1,29 @@
 import express from "express";
-import { authMiddleware } from "../middlewares/authMiddleware.js";
-import { getAllPatients, getPatientById } from "../controllers/patientController.js";
+import { authMiddleware } from "../middlewares/jwt.js";
+import {
+  getMyPatientDashboard,
+  getMyPrescriptions,
+  downloadPrescriptionPDF,
+  exportMedicalHistoryPDF,
+} from "../controllers/patientController.js";
+import { getMyMedicalHistory } from "../controllers/medicalHistoryController.js";
 
 const router = express.Router();
 
-// Get all patients
-router.get("/", authMiddleware, getAllPatients);
+// All patient routes require auth
+router.get("/dashboard",                            authMiddleware, getMyPatientDashboard);
 
-// Get single patient
-router.get("/:id", authMiddleware, getPatientById);
+// ── Prescriptions ─────────────────────────────────────────────────────────────
+// FIX: frontend calls /api/patient/my-prescriptions  (was /prescriptions)
+router.get("/my-prescriptions",                     authMiddleware, getMyPrescriptions);
 
-// dashboard route
-router.get("/patient", authMiddleware, (req, res) => {
-  if (req.user.role !== "patient")
-    return res.status(403).json({ message: "Forbidden" });
+// FIX: frontend calls /api/patient/prescription/:id/pdf  (was /prescriptions/:id/download)
+router.get("/prescription/:prescriptionId/pdf",     authMiddleware, downloadPrescriptionPDF);
 
-  res.json({
-    message: `Hello ${req.user.role}, welcome to patient dashboard`,
-  });
-});
+// ── Medical History ───────────────────────────────────────────────────────────
+// GET /api/patient/my-medical-history  — patient views their own records
+router.get("/my-medical-history",                   authMiddleware, getMyMedicalHistory);
+// GET /api/patient/medical-history/export  — unchanged, backend was already correct
+router.get("/medical-history/export",               authMiddleware, exportMedicalHistoryPDF);
 
 export default router;

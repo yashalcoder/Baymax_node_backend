@@ -4,21 +4,21 @@ import {
   signup,
   login,
   getMe,
-  refreshToken,
   updateProfile,
+  refreshToken,
   changePassword,
 } from "../controllers/authController.js";
 
 const authRoutes = express.Router();
 
-// Public routes
-authRoutes.post("/signup", signup);
-authRoutes.post("/login", login);
+// ── Public routes — no token needed ──────────────────────────────────────────
+authRoutes.post("/signup",          signup);
+authRoutes.post("/login",           login);
 
-// Protected routes
-authRoutes.get("/profile", authenticateToken, getMe);
-authRoutes.put("/profile", authenticateToken, updateProfile);
-authRoutes.post("/refresh-token", authenticateToken, refreshToken);
-authRoutes.put("/change-password", authenticateToken, changePassword);
+// ── Protected routes — valid JWT required ─────────────────────────────────────
+authRoutes.get( "/profile",         authenticateToken, getMe);
+authRoutes.put( "/profile",         authenticateToken, updateProfile);   // ← NEW: update name/contact/address
+authRoutes.post("/refresh-token",   authenticateToken, refreshToken);
+authRoutes.put( "/change-password", authenticateToken, changePassword);
 
 export default authRoutes;

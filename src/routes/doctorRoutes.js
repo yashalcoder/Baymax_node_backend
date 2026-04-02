@@ -5,6 +5,7 @@ import {
   registerDoctor,
   getDoctors,
   updateDoctorProfile,
+  getAssignedPatients,
 } from "../controllers/doctorControllers.js";
 
 const doctorRouter = express.Router();
@@ -22,5 +23,5 @@ doctorRouter.post("/register-doctor", upload.single("file"), registerDoctor);
 // Get all doctors (public)
 doctorRouter.get("/doctors", getDoctors);
 doctorRouter.put("/update/profile", authenticateToken, updateDoctorProfile);
-
+doctorRouter.get("/my-patients", authenticateToken, getAssignedPatients);
 export default doctorRouter;

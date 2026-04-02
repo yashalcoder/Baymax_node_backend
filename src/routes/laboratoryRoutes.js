@@ -1,7 +1,11 @@
 import express from "express";
-import { authenticateToken } from "../middlewares/jwt.js";
+import { authMiddleware } from "../middlewares/jwt.js";
 import {
+  getAllLaboratories,
+  getLabTests,
+  getNearbyLaboratories,
   getLabProfile,
+  getTests,
   addTest,
   updateTest,
   getTests,
@@ -30,5 +34,15 @@ router.delete("/test/:testId", authenticateToken, isLab, deleteTest);
 
 // Patient search — no auth needed
 router.get("/search", searchLabTests);
+
+
+// ─────────────────────────────────────────────
+// PUBLIC  (patients / no auth required)
+// ─────────────────────────────────────────────
+router.get("/",       getAllLaboratories);     // GET /api/laboratories
+router.get("/tests",  getLabTests);            // GET /api/laboratories/tests
+router.get("/nearby", getNearbyLaboratories);  // GET /api/laboratories/nearby?lat=&lng=&tests=
+
+
 
 export default router;

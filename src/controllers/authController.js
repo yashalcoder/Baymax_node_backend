@@ -30,6 +30,7 @@ export const signup = async (req, res) => {
       majorDisease,
     } = req.body;
 
+    // ── Validate required fields ──────────────────────────────────────────────
     if (!name || !email || !password || !role) {
       return res.status(400).json({
         status:  "error",
@@ -51,6 +52,7 @@ export const signup = async (req, res) => {
       });
     }
 
+    // Validate role
     const allowedRoles = ["doctor", "patient", "assistant", "pharmacy", "laboratory"];
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({
@@ -59,6 +61,7 @@ export const signup = async (req, res) => {
       });
     }
 
+    // ── Duplicate email check ─────────────────────────────────────────────────
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
       return res.status(400).json({
@@ -67,8 +70,10 @@ export const signup = async (req, res) => {
       });
     }
 
+    // ── Hash password ─────────────────────────────────────────────────────────
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ── Create base User record ───────────────────────────────────────────────
     const user = await User.create({
       name:     name.trim(),
       email:    email.toLowerCase().trim(),
@@ -82,6 +87,7 @@ export const signup = async (req, res) => {
 
     console.log(`✅ User created: ${user._id} (${role})`);
 
+    // ── Create role-specific profile ──────────────────────────────────────────
     try {
       switch (role) {
 
@@ -152,6 +158,7 @@ export const signup = async (req, res) => {
       }
       console.log(`✅ Role profile created for: ${role}`);
     } catch (profileErr) {
+      // If role-profile creation fails, delete the user to avoid orphaned records
       await User.findByIdAndDelete(user._id);
       console.error("❌ Role profile creation failed, rolled back user:", profileErr);
       return res.status(500).json({
@@ -160,6 +167,7 @@ export const signup = async (req, res) => {
       });
     }
 
+    // ── Issue JWT ─────────────────────────────────────────────────────────────
     const token = generateToken(user);
 
     return res.status(201).json({
@@ -181,12 +189,15 @@ export const signup = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Signup error:", error);
+
+    // Handle mongoose duplicate key error explicitly
     if (error.code === 11000) {
       return res.status(400).json({
         status:  "error",
         message: "An account with this email already exists",
       });
     }
+
     return res.status(500).json({
       status:  "error",
       message: error.message || "Server error during signup",

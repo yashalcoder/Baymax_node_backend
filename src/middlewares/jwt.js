@@ -1,18 +1,20 @@
-// ============================================
-// JWT HELPER FUNCTIONS
-// ============================================
-const JWT_SECRET =
-  process.env.JWT_SECRET || "super-secret-jwt-key";
-const JWT_EXPIRE = "14d"; // Token expires in 7 days
 import jwt from "jsonwebtoken";
+
+// ============================================
+// JWT CONFIG
+// ============================================
+const JWT_SECRET = process.env.JWT_SECRET || "super-secret-jwt-key";
+const JWT_EXPIRE  = process.env.JWT_EXPIRE  || "1y";
+
+// ============================================
+// GENERATE TOKEN
+// ============================================
 const generateToken = (user) => {
-  console.log("Generating token for user:", user);
   return jwt.sign(
     {
-      id: user._id || user.id,
-      email: user.email,
-      role: user.role,
-      doctorId: user.doctorId || user.patientId || null,
+      id:    user?._id   || user?.id,
+      email: user?.email,
+      role:  user?.role,
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRE }
@@ -20,29 +22,45 @@ const generateToken = (user) => {
 };
 
 // ============================================
-// MIDDLEWARE: Verify JWT Token
+// EXTRACT TOKEN  (Bearer header or cookie)
 // ============================================
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+function extractToken(req) {
+  const authHeader  = req.headers?.authorization || req.headers?.Authorization;
+  const bearerToken =
+    typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+
+  const cookieToken = req.cookies?.token;
+  return bearerToken || cookieToken || null;
+}
+
+// ============================================
+// MIDDLEWARE: Verify JWT
+// ============================================
+const authMiddleware = (req, res, next) => {
+  const token = extractToken(req);
 
   if (!token) {
     return res.status(401).json({
-      status: "error",
+      status:  "error",
       message: "Access token required",
     });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({
-        status: "error",
-        message: "Invalid or expired token",
-      });
-    }
-    req.user = user;
-    console.log("Authenticated user:", user);
-    next();
-  });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    return next();
+  } catch {
+    return res.status(403).json({
+      status:  "error",
+      message: "Invalid or expired token",
+    });
+  }
 };
-export { generateToken, authenticateToken };
+
+// backward-compat alias
+const authenticateToken = authMiddleware;
+
+export { generateToken, authenticateToken, authMiddleware };

@@ -26,10 +26,8 @@ const pharmacySchema = new mongoose.Schema({
     type: { type: String, default: "Point" },
     coordinates: { type: [Number], default: [0, 0] },
   },
-  medicines: [medicineSchema],
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-});
+  { timestamps: true }
+);
 
 pharmacySchema.index({ location: "2dsphere" });
 
