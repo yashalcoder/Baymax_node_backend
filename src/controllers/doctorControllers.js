@@ -415,3 +415,53 @@ export const getAssignedPatients = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+import Consultation from "../models/Consultation.js";
+import mongoose from "mongoose";
+
+export const getConsultationsByDoctorId = async (req, res) => {
+  try {
+    const doctorUserId = req.user.id;
+
+    // 🔍 Find doctor from logged-in user
+    const doctor = await Doctor.findOne({ userId: doctorUserId });
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    // 📋 Fetch consultations using doctor._id
+    const consultations = await Consultation.find({
+      doctorId: doctor._id,
+    })
+      .sort({ createdAt: -1 });
+
+    // 🧾 Format response (optional but clean like patients)
+    const formatted = consultations.map((c) => ({
+      consultationId: c._id,
+      patientId: c.patientId,
+      symptoms: c.symptoms,
+      diagnosis: c.diagnosis,
+      prescription: c.prescription,
+      notes: c.notes,
+      status: c.status,
+      date: c.createdAt,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: formatted.length,
+      data: formatted,
+    });
+
+  } catch (error) {
+    console.error("❌ Error fetching consultations:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

@@ -11,7 +11,11 @@ function formatSymptomName(str) {
 export const getSymptomps=async (req, res) => {
    try {
      const consultation = await Consultation.findById(req.params.consultationId);
-  const patientInfo=await Users.findById(consultation.patientId)
+     console.log("Consultation found:", consultation);
+
+     const id=await Patient.findById(consultation.patientId)
+     console.log("Patient ID:", id);
+  const patientInfo=await Users.findById(id.userId);
      console.log("patientInfo",patientInfo);
      if (!consultation) {
        return res.status(404).json({ message: 'Consultation not found' });
