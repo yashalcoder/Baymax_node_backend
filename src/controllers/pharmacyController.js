@@ -47,8 +47,6 @@ export const getAllPharmacies = async (req, res) => {
   }
 };
 
-// FIX: replaced MongoDB $near (requires 2dsphere index) with in-memory
-// haversine filter — works without any Atlas index changes.
 export const getNearbyPharmacies = async (req, res) => {
   try {
     const { lat, lng, medicines, maxKm = 5 } = req.query;
@@ -63,29 +61,24 @@ export const getNearbyPharmacies = async (req, res) => {
     if (isNaN(userLat) || isNaN(userLng))
       return res.status(400).json({ message: "lat and lng must be valid numbers" });
 
-    // Build medicine filter list (optional)
     const medicineList = medicines
       ? String(medicines).split(",").map((m) => m.trim().toLowerCase()).filter(Boolean)
       : [];
 
-    // Fetch all pharmacies that are open and have coordinates stored
     const allPharmacies = await Pharmacy.find({ isOpen: true })
       .populate("userId", "name email contact")
       .select("-__v");
 
     const nearby = allPharmacies
       .filter((p) => {
-        // Must have coordinates
         const coords = p.location?.coordinates;
         if (!Array.isArray(coords) || coords.length !== 2) return false;
 
-        // Within radius
         const pLng = coords[0];
         const pLat = coords[1];
         const dist = haversineKm(userLat, userLng, pLat, pLng);
         if (dist > radius) return false;
 
-        // Medicine filter (if requested)
         if (medicineList.length > 0) {
           const has = medicineList.some((med) =>
             (p.medicines || []).some(
@@ -114,7 +107,7 @@ export const getNearbyPharmacies = async (req, res) => {
           distanceKm:   parseFloat(dist.toFixed(2)),
         };
       })
-      .sort((a, b) => a.distanceKm - b.distanceKm);   // closest first
+      .sort((a, b) => a.distanceKm - b.distanceKm);
 
     return res.status(200).json({ success: true, pharmacies: nearby });
   } catch (error) {
@@ -177,16 +170,31 @@ export const getMedicines = async (req, res) => {
 // Add new medicine (FR-7.3)
 export const addMedicine = async (req, res) => {
   try {
-    const { name, strength, dosageForm, price, brand, quantityAvailable, expiryDate } = req.body;
+    const { name, strengthValue, strengthUnit, dosageForm, price, brand, quantityAvailable, expiryDate } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({ message: "Medicine name and price are required" });
     }
 
+    if (name.trim().length < 3) {
+      return res.status(400).json({ message: "Medicine name must be at least 3 characters" });
+    }
+
+    if (price <= 0) {
+      return res.status(400).json({ message: "Price must be greater than 0" });
+    }
+
+    // Auto status based on stock
+    const status = !quantityAvailable || quantityAvailable === 0
+      ? "Out of Stock"
+      : quantityAvailable <= 50
+      ? "Low Stock"
+      : "Available";
+
     const pharmacy = await Pharmacy.findOne({ userId: req.user.id });
     if (!pharmacy) return res.status(404).json({ message: "Pharmacy not found" });
 
-    pharmacy.medicines.push({ name, strength, dosageForm, price, brand, quantityAvailable, expiryDate });
+    pharmacy.medicines.push({ name, strengthValue, strengthUnit, dosageForm, price, brand, quantityAvailable, expiryDate, status });
     pharmacy.updatedAt = Date.now();
     await pharmacy.save();
 
@@ -196,6 +204,7 @@ export const addMedicine = async (req, res) => {
   }
 };
 
+// Update medicine by ID (FR-7.4)
 export const updateMedicine = async (req, res) => {
   try {
     const pharmacy = await Pharmacy.findOne({ userId: req.user.id });
@@ -205,6 +214,16 @@ export const updateMedicine = async (req, res) => {
     if (!medicine) return res.status(404).json({ message: "Medicine not found" });
 
     Object.assign(medicine, req.body);
+
+    // Auto update status based on quantity
+    if (req.body.quantityAvailable !== undefined) {
+      medicine.status = req.body.quantityAvailable === 0
+        ? "Out of Stock"
+        : req.body.quantityAvailable <= 50
+        ? "Low Stock"
+        : "Available";
+    }
+
     medicine.lastUpdated = Date.now();
     pharmacy.updatedAt = Date.now();
     await pharmacy.save();
@@ -252,11 +271,11 @@ export const searchMedicines = async (req, res) => {
     }
 
     const results = pharmacies.map((pharmacy) => ({
-      pharmacyName: pharmacy.pharmacyName,
+      pharmacyName:  pharmacy.pharmacyName,
       contactNumber: pharmacy.contactNumber,
-      address: pharmacy.address,
-      location: pharmacy.location,
-      medicines: pharmacy.medicines.filter((m) =>
+      address:       pharmacy.address,
+      location:      pharmacy.location,
+      medicines:     pharmacy.medicines.filter((m) =>
         m.name.toLowerCase().includes(medicineName.toLowerCase())
       ),
     }));

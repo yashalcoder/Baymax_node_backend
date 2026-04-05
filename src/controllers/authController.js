@@ -14,21 +14,22 @@ const { ObjectId } = mongoose.Types;
 export const signup = async (req, res) => {
   try {
     const {
-      name,
-      email,
-      password,
-      confirmPassword,
-      role,
-      contact,
-      address,
-      cnic,
-      gender,
-      location,
-      degree,
-      allergies,
-      bloodGroup,
-      majorDisease,
-    } = req.body;
+  name,
+  email,
+  password,
+  confirmPassword,
+  role,
+  contact,
+  address,
+  cnic,
+  gender,
+  location,
+  degree,
+  allergies,
+  bloodGroup,
+  majorDisease,
+  ownerName,
+} = req.body;
 
     // ── Validate required fields ──────────────────────────────────────────────
     if (!name || !email || !password || !role) {
@@ -59,6 +60,26 @@ export const signup = async (req, res) => {
         status:  "error",
         message: `Invalid role. Must be one of: ${allowedRoles.join(", ")}`,
       });
+    }
+
+    // ── Email format validation ───────────────────────────────────────────────
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        status:  "error",
+        message: "Invalid email format",
+      });
+    }
+
+    // ── Phone number validation ───────────────────────────────────────────────
+    if (contact) {
+      const phoneRegex = /^[0-9+\-()\s]{10,15}$/;
+      if (!phoneRegex.test(contact)) {
+        return res.status(400).json({
+          status:  "error",
+          message: "Invalid contact number format",
+        });
+      }
     }
 
     // ── Duplicate email check ─────────────────────────────────────────────────
@@ -145,8 +166,8 @@ export const signup = async (req, res) => {
           await Laboratory.create({
             userId:        user._id,
             labName:       name,
-            ownerName:     name,           // ✅ FR-6.1
-            contactNumber: contact || "",  // ✅ FR-6.1
+            ownerName:     ownerName || name,
+            contactNumber: contact || "",  
             address:       { street: address || "" },
             location:      { type: "Point", coordinates },
           });
