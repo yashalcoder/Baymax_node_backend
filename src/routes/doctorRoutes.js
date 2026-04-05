@@ -8,6 +8,8 @@ import {
   getDoctors,
   updateDoctorProfile,
   getAssignedPatients,
+  dischargePatient,
+  getMostRecentAssignedPatient
 } from "../controllers/doctorControllers.js";
 
 const doctorRouter = express.Router();
@@ -26,7 +28,7 @@ doctorRouter.post("/register-doctor", upload.single("file"), registerDoctor);
 doctorRouter.get("/doctors", getDoctors);
 doctorRouter.put("/update/profile", authenticateToken, updateDoctorProfile);
 doctorRouter.get("/my-patients", authenticateToken, getAssignedPatients);
-
-
+doctorRouter.get("/old-patient", authenticateToken, getMostRecentAssignedPatient);
 doctorRouter.get("/getConsultations",authenticateToken, getConsultationsByDoctorId);
+doctorRouter.delete("/discharge/:patientId", authenticateToken, dischargePatient);
 export default doctorRouter;
