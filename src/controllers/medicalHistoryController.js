@@ -93,6 +93,27 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 // ─────────────────────────────────────────────
+// 🗑️ SAFE FILE DELETE (Windows-compatible)
+// On Windows, Tesseract/Sharp hold a file lock briefly after finishing.
+// We retry up to 5 times with a 200ms delay before giving up silently.
+// ─────────────────────────────────────────────
+const safeUnlink = async (filePath, retries = 5, delayMs = 200) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      return; // success
+    } catch (err) {
+      if (i < retries - 1 && (err.code === "EPERM" || err.code === "EBUSY")) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        console.warn(`⚠️  Could not delete temp file ${filePath}:`, err.code);
+        return; // give up silently — temp file stays but doesn't crash the request
+      }
+    }
+  }
+};
+
+// ─────────────────────────────────────────────
 // 🖼️ IMAGE PREPROCESSOR
 // ─────────────────────────────────────────────
 const preprocessImage = async (inputPath, outputPath) => {
@@ -124,7 +145,7 @@ const extractTextFromImage = async (imagePath) => {
 
     return data.text || "";
   } finally {
-    if (fs.existsSync(cleanPath)) fs.unlinkSync(cleanPath);
+    await safeUnlink(cleanPath);
   }
 };
 
@@ -178,8 +199,8 @@ const extractTextFromScannedPDF = async (buffer) => {
     const text = await extractTextFromImage(imagePath);
     return text;
   } finally {
-    if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
-    if (imagePath && fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+    await safeUnlink(pdfPath);
+    if (imagePath) await safeUnlink(imagePath);
   }
 };
 
@@ -301,7 +322,7 @@ export const extractMedicalTerms = async (req, res) => {
       try {
         rawText = await extractTextFromImage(imagePath);
       } finally {
-        if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+        await safeUnlink(imagePath);
       }
 
     } else {
