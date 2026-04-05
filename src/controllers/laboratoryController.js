@@ -24,23 +24,35 @@ export const getAllLaboratories = async (req, res) => {
       .populate("userId", "name email contact")
       .select("-__v");
 
-    const formatted = labs.map((lab) => ({
-      _id:            lab._id,
-      labName:        lab.labName || lab.userId?.name || "Unknown Lab",
-      address:        lab.address?.street || "",
-      phone:          lab.userId?.contact || lab.phone || "",
-      email:          lab.userId?.email   || "",
-      location: lab.location?.coordinates?.length === 2
-        ? { lat: lab.location.coordinates[1], lng: lab.location.coordinates[0] }
-        : null,
-      openHours:      lab.openHours      || "",
-      homeCollection: lab.homeCollection || false,
-      reportTime:     lab.reportTime     || "",
-      rating:         lab.rating         || null,
-      discount:       lab.discount       || 0,
-      prices:         lab.prices         || {},
-      services:       lab.services       || "",
-    }));
+    const formatted = labs.map((lab) => {
+      // FIX: build a prices map from lab.tests[] because the model has no
+      // separate "prices" field — tests ARE the source of truth for prices.
+      // Key = test _id (string), Value = test price
+      const prices = {};
+      (lab.tests || []).forEach((t) => {
+        if (t._id && t.available !== false) {
+          prices[t._id.toString()] = t.price;
+        }
+      });
+
+      return {
+        _id:            lab._id,
+        labName:        lab.labName || lab.userId?.name || "Unknown Lab",
+        address:        lab.address?.street || "",
+        phone:          lab.contactNumber || lab.userId?.contact || "",
+        email:          lab.userId?.email   || "",
+        location: lab.location?.coordinates?.length === 2
+          ? { lat: lab.location.coordinates[1], lng: lab.location.coordinates[0] }
+          : null,
+        openHours:      lab.openHours      || "",
+        homeCollection: lab.homeCollection || false,
+        reportTime:     lab.reportTime     || "",
+        rating:         lab.rating         || null,
+        discount:       lab.discount       || 0,
+        prices,   // ← now correctly populated from tests[]
+        services:       lab.services       || "",
+      };
+    });
 
     return res.status(200).json({ success: true, laboratories: formatted });
   } catch (error) {
@@ -57,9 +69,18 @@ export const getLabTests = async (req, res) => {
     labs.forEach((lab) => {
       (lab.tests || []).forEach((t) => {
         const key = t.name?.toLowerCase().trim();
-        if (key && !testMap.has(key)) {
+        if (!key) return;
+
+        if (testMap.has(key)) {
+          // Update min/max price across all labs
+          const existing = testMap.get(key);
+          existing.minPrice = Math.min(existing.minPrice, t.price || 0);
+          existing.maxPrice = Math.max(existing.maxPrice, t.price || 0);
+        } else {
           testMap.set(key, {
-            _id:         t._id || t.name,
+            // FIX: always use the MongoDB subdoc _id (ObjectId) so it matches
+            // the keys in the prices map built by getAllLaboratories
+            _id:         t._id.toString(),
             name:        t.name,
             description: t.description || "",
             category:    t.category    || "general",
@@ -77,8 +98,6 @@ export const getLabTests = async (req, res) => {
   }
 };
 
-// FIX: replaced MongoDB $near (requires 2dsphere index) with in-memory
-// haversine filter — works without any Atlas index changes.
 export const getNearbyLaboratories = async (req, res) => {
   try {
     const { lat, lng, tests, maxKm = 5 } = req.query;
@@ -93,35 +112,26 @@ export const getNearbyLaboratories = async (req, res) => {
     if (isNaN(userLat) || isNaN(userLng))
       return res.status(400).json({ message: "lat and lng must be valid numbers" });
 
-    // Build test filter list (optional)
     const testList = tests
       ? String(tests).split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
       : [];
 
-    // Fetch all labs that have coordinates stored
     const allLabs = await Laboratory.find()
       .populate("userId", "name email contact")
       .select("-__v");
 
     const nearby = allLabs
       .filter((lab) => {
-        // Must have coordinates
         const coords = lab.location?.coordinates;
         if (!Array.isArray(coords) || coords.length !== 2) return false;
 
-        // Within radius
-        const lLng = coords[0];
-        const lLat = coords[1];
-        const dist = haversineKm(userLat, userLng, lLat, lLng);
+        const dist = haversineKm(userLat, userLng, coords[1], coords[0]);
         if (dist > radius) return false;
 
-        // Test filter (if requested)
         if (testList.length > 0) {
           const has = testList.some((testName) =>
             (lab.tests || []).some(
-              (t) =>
-                t.name?.toLowerCase().includes(testName) &&
-                t.available !== false
+              (t) => t.name?.toLowerCase().includes(testName) && t.available !== false
             )
           );
           if (!has) return false;
@@ -132,11 +142,19 @@ export const getNearbyLaboratories = async (req, res) => {
       .map((lab) => {
         const coords = lab.location.coordinates;
         const dist   = haversineKm(userLat, userLng, coords[1], coords[0]);
+
+        const prices = {};
+        (lab.tests || []).forEach((t) => {
+          if (t._id && t.available !== false) {
+            prices[t._id.toString()] = t.price;
+          }
+        });
+
         return {
           _id:            lab._id,
           labName:        lab.labName || lab.userId?.name || "Unknown Lab",
           address:        lab.address?.street || "",
-          phone:          lab.userId?.contact || lab.phone || "",
+          phone:          lab.contactNumber || lab.userId?.contact || "",
           email:          lab.userId?.email   || "",
           location:       { lat: coords[1], lng: coords[0] },
           openHours:      lab.openHours      || "",
@@ -144,12 +162,12 @@ export const getNearbyLaboratories = async (req, res) => {
           reportTime:     lab.reportTime     || "",
           rating:         lab.rating         || null,
           discount:       lab.discount       || 0,
-          prices:         lab.prices         || {},
+          prices,
           tests:          lab.tests          || [],
           distanceKm:     parseFloat(dist.toFixed(2)),
         };
       })
-      .sort((a, b) => a.distanceKm - b.distanceKm);  // closest first
+      .sort((a, b) => a.distanceKm - b.distanceKm);
 
     return res.status(200).json({ success: true, laboratories: nearby });
   } catch (error) {
@@ -172,7 +190,6 @@ export const getLabProfile = async (req, res) => {
   }
 };
 
-// Update lab address + location coordinates (FR-6.5)
 export const updateLabLocation = async (req, res) => {
   try {
     const { ownerName, contactNumber, address, coordinates } = req.body;
@@ -180,14 +197,11 @@ export const updateLabLocation = async (req, res) => {
     const lab = await Laboratory.findOne({ userId: req.user.id });
     if (!lab) return res.status(404).json({ message: "Laboratory not found" });
 
-    if (ownerName) lab.ownerName = ownerName;
+    if (ownerName)     lab.ownerName     = ownerName;
     if (contactNumber) lab.contactNumber = contactNumber;
-    if (address) lab.address = address;
+    if (address)       lab.address       = address;
     if (coordinates) {
-      lab.location = {
-        type: "Point",
-        coordinates: coordinates,
-      };
+      lab.location = { type: "Point", coordinates };
     }
 
     lab.updatedAt = Date.now();
@@ -199,7 +213,8 @@ export const updateLabLocation = async (req, res) => {
   }
 };
 
-// Get all tests (FR-6.6)
+// Returns the calling lab's own tests (protected, lab role only)
+// Route changed to GET /my-tests to avoid shadowing public GET /tests
 export const getTests = async (req, res) => {
   try {
     const lab = await Laboratory.findOne({ userId: req.user.id });
@@ -214,17 +229,12 @@ export const addTest = async (req, res) => {
   try {
     const { name, category, price, code, sampleType, turnaroundValue, turnaroundUnit } = req.body;
 
-    if (!name || !price) {
+    if (!name || !price)
       return res.status(400).json({ message: "Test name and price are required" });
-    }
-
-    if (name.trim().length < 3) {
+    if (name.trim().length < 3)
       return res.status(400).json({ message: "Test name must be at least 3 characters" });
-    }
-
-    if (price <= 0) {
+    if (price <= 0)
       return res.status(400).json({ message: "Price must be greater than 0" });
-    }
 
     const lab = await Laboratory.findOne({ userId: req.user.id });
     if (!lab) return res.status(404).json({ message: "Laboratory not found" });
@@ -249,7 +259,7 @@ export const updateTest = async (req, res) => {
 
     Object.assign(test, req.body);
     test.lastUpdated = Date.now();
-    lab.updatedAt = Date.now();
+    lab.updatedAt    = Date.now();
     await lab.save();
 
     res.json({ message: "Test updated successfully", test });
@@ -258,7 +268,6 @@ export const updateTest = async (req, res) => {
   }
 };
 
-// Delete test by ID (FR-6.4)
 export const deleteTest = async (req, res) => {
   try {
     const lab = await Laboratory.findOne({ userId: req.user.id });
@@ -277,30 +286,26 @@ export const deleteTest = async (req, res) => {
   }
 };
 
-// Search labs by test name — for patients (FR-6.6)
 export const searchLabTests = async (req, res) => {
   try {
     const { testName } = req.query;
-
-    if (!testName) {
+    if (!testName)
       return res.status(400).json({ message: "testName query parameter is required" });
-    }
 
     const labs = await Laboratory.find({
       "tests.name": { $regex: testName, $options: "i" },
     });
 
-    if (!labs.length) {
+    if (!labs.length)
       return res.status(404).json({ message: "No labs found for this test" });
-    }
 
     const results = labs.map((lab) => ({
-      labName: lab.labName,
-      ownerName: lab.ownerName,
+      labName:       lab.labName,
+      ownerName:     lab.ownerName,
       contactNumber: lab.contactNumber,
-      address: lab.address,
-      location: lab.location,
-      tests: lab.tests.filter((t) =>
+      address:       lab.address,
+      location:      lab.location,
+      tests:         lab.tests.filter((t) =>
         t.name.toLowerCase().includes(testName.toLowerCase())
       ),
     }));
