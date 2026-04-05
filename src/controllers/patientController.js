@@ -1,8 +1,9 @@
 import Patient        from "../models/Patient.js";
 import User           from "../models/user.js";
 import MedicalHistory from "../models/MedicalHistory.js";
-import Prescription   from "../models/Prescription.js";
+
 import PDFDocument    from "pdfkit";
+import Consultation from "../models/Consultation.js";
 
 // =============================================================================
 // GET CURRENT PATIENT DASHBOARD DATA
@@ -36,14 +37,60 @@ export const getMyPatientDashboard = async (req, res) => {
 // =============================================================================
 export const getAllPatients = async (req, res) => {
   try {
-    const patients = await Patient.find().populate(
-      "userId",
-      "name email contact address"
-    );
-    res.status(200).json({ success: true, count: patients.length, patients });
+    // Query params
+    const {
+      page = 1,
+      limit = 0, // 0 = no pagination (return all)
+      search = "",
+      sortBy = "createdAt",
+      order = "desc",
+    } = req.query;
+
+    // 🔍 Filtering (search by name/email/contact)
+    let query = {};
+
+    if (search) {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { contact: { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    // 📊 Sorting
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    // 📦 Base query
+    let patientQuery = Patient.find(query)
+      .populate("userId", "name email contact address")
+      .sort({ [sortBy]: sortOrder });
+
+    // 📄 Pagination (only if limit > 0)
+    if (limit > 0) {
+      const skip = (page - 1) * limit;
+      patientQuery = patientQuery.skip(skip).limit(Number(limit));
+    }
+
+    const patients = await patientQuery;
+
+    // 📊 Total count (for frontend pagination)
+    const total = await Patient.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      total,
+      page: Number(page),
+      pages: limit > 0 ? Math.ceil(total / limit) : 1,
+      count: patients.length,
+      patients,
+    });
   } catch (error) {
     console.error("❌ Error fetching patients:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
   }
 };
 
@@ -70,6 +117,8 @@ export const getPatientById = async (req, res) => {
 // =============================================================================
 // GET MY PRESCRIPTIONS  (real data from DB)
 // =============================================================================
+
+
 export const getMyPrescriptions = async (req, res) => {
   try {
     const patient = await Patient.findOne({ userId: req.user.id });
@@ -77,13 +126,42 @@ export const getMyPrescriptions = async (req, res) => {
       return res.status(404).json({ success: false, message: "Patient profile not found" });
     }
 
-    const prescriptions = await Prescription.find({ patientId: req.user.id })
-      .populate({
-        path:   "doctorId",
-        select: "name email contact",
-        model:  "User",
-      })
-      .sort({ createdAt: -1 });
+    const consultations = await Consultation.find({ patientId: patient._id })
+  .populate({
+    path: "doctorId",  // Doctor document
+    select: "firstName lastName userId",
+    populate: { path: "userId", select: "name email contact" }, // User document
+  })
+  .sort({ createdAt: -1 });
+  console.log("doctorId populated:", JSON.stringify(consultations[0]?.doctorId, null, 2))
+
+const prescriptions = consultations
+  .filter((c) => c.prescription?.diagnosis)
+  .map((c) => {
+    const d = c.doctorId;
+    // Doctor has firstName+lastName, fallback to User.name
+    const doctorName = d
+      ? `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.userId?.name || "N/A"
+      : "N/A";
+
+    return {
+      _id:        c._id,
+      createdAt:  c.createdAt,
+      doctor:     doctorName,   
+      diagnosis:  c.prescription.diagnosis,
+      medicines:  c.prescription.prescription.map((m) => ({
+        name:        m.medicine,
+        type:        m.type,
+        dosage:      m.dosage,
+        duration:    m.duration,
+        precautions: m.precautions,
+      })),
+      advice:     c.prescription.advice,
+      disclaimer: c.prescription.disclaimer,
+      diseases:   c.extractedEntities?.diseases,
+      severity:   c.extractedEntities?.severity,
+    };
+  });
 
     return res.status(200).json({ success: true, prescriptions });
   } catch (error) {
@@ -91,106 +169,101 @@ export const getMyPrescriptions = async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
-
 // =============================================================================
 // DOWNLOAD ONE PRESCRIPTION AS PDF
 // =============================================================================
 export const downloadPrescriptionPDF = async (req, res) => {
   try {
-    const { prescriptionId } = req.params;
+    const { prescriptionId } = req.params; // this is actually consultationId 
 
-    const prescription = await Prescription.findById(prescriptionId)
-      .populate({ path: "doctorId",  select: "name email contact", model: "User" })
-      .populate({ path: "patientId", select: "name email contact", model: "User" });
+    const consultation = await Consultation.findById(prescriptionId)
+      .populate({
+        path: "doctorId",
+        populate: { path: "userId", select: "name email contact" },
+      })
+      .populate({
+        path: "patientId",
+        populate: { path: "userId", select: "name email contact" },
+      });
 
-    if (!prescription) {
-      return res.status(404).json({ success: false, message: "Prescription not found" });
+    if (!consultation) {
+      return res.status(404).json({ success: false, message: "Consultation not found" });
     }
 
-    // Ensure the requesting patient owns this prescription
-    if (prescription.patientId._id.toString() !== req.user.id.toString()) {
+    // Make sure this patient owns it
+    const patient = await Patient.findOne({ userId: req.user.id });
+    if (!patient || consultation.patientId._id.toString() !== patient._id.toString()) {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    const doc = new PDFDocument({ margin: 50 });
+    const rx          = consultation.prescription;
+    const doctorName  = consultation.doctorId?.userId?.name || consultation.doctorId?.name || "N/A";
+    const patientName = consultation.patientId?.userId?.name || "N/A";
 
+    const doc = new PDFDocument({ margin: 50 });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="prescription-${prescriptionId}.pdf"`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="prescription-${prescriptionId}.pdf"`);
     doc.pipe(res);
 
-    // ── Header ────────────────────────────────────────────────────────────────
+    // Header
     doc.fontSize(20).font("Helvetica-Bold").text("Medical Prescription", { align: "center" });
     doc.moveDown(0.5);
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.5);
 
-    // ── Doctor info ───────────────────────────────────────────────────────────
+    // Doctor / Patient / Date
     doc.fontSize(12).font("Helvetica-Bold").text("Doctor:");
-    doc.font("Helvetica").text(prescription.doctorId?.name || "N/A");
-    doc.text(`Contact: ${prescription.doctorId?.contact || "N/A"}`);
-    doc.moveDown(0.5);
-
-    // ── Patient info ──────────────────────────────────────────────────────────
+    doc.font("Helvetica").text(doctorName);
+    doc.moveDown(0.3);
     doc.font("Helvetica-Bold").text("Patient:");
-    doc.font("Helvetica").text(prescription.patientId?.name || "N/A");
-    doc.moveDown(0.5);
-
-    // ── Date ──────────────────────────────────────────────────────────────────
+    doc.font("Helvetica").text(patientName);
+    doc.moveDown(0.3);
     doc.font("Helvetica-Bold").text("Date:");
-    doc.font("Helvetica").text(
-      new Date(prescription.createdAt).toLocaleDateString("en-US", {
-        year: "numeric", month: "long", day: "numeric",
-      })
-    );
+    doc.font("Helvetica").text(new Date(consultation.createdAt).toLocaleDateString("en-US", {
+      year: "numeric", month: "long", day: "numeric",
+    }));
     doc.moveDown(0.5);
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.5);
 
-    // ── Medicines ─────────────────────────────────────────────────────────────
-    doc.fontSize(14).font("Helvetica-Bold").text("Prescribed Medicines:");
-    doc.moveDown(0.3);
+    // Diagnosis
+    doc.fontSize(13).font("Helvetica-Bold").text("Diagnosis:");
+    doc.fontSize(11).font("Helvetica").text(rx.diagnosis || "N/A");
+    doc.moveDown(0.5);
 
-    if (prescription.medicines?.length > 0) {
-      prescription.medicines.forEach((med, i) => {
-        doc.fontSize(12).font("Helvetica-Bold").text(`${i + 1}. ${med.name}`);
+    // Medicines — use "medicine" key from AI response
+    doc.fontSize(13).font("Helvetica-Bold").text("Prescribed Medicines:");
+    doc.moveDown(0.3);
+    if (rx.prescription?.length > 0) {
+      rx.prescription.forEach((med, i) => {
+        doc.fontSize(11).font("Helvetica-Bold").text(`${i + 1}. ${med.medicine}`);
         doc.font("Helvetica")
+          .text(`   Type: ${med.type || "N/A"}`)
           .text(`   Dosage: ${med.dosage || "N/A"}`)
-          .text(`   Frequency: ${med.frequency || "N/A"}`)
-          .text(`   Duration: ${med.duration || "N/A"}`);
+          .text(`   Duration: ${med.duration || "N/A"}`)
+          .text(`   Precautions: ${med.precautions || "N/A"}`);
         doc.moveDown(0.3);
       });
-    } else {
-      doc.font("Helvetica").text("No medicines listed.");
     }
 
-    // ── Lab Tests ─────────────────────────────────────────────────────────────
-    if (prescription.labTests?.length > 0) {
-      doc.moveDown(0.3);
+    // Advice
+    if (rx.advice?.length > 0) {
       doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
       doc.moveDown(0.3);
-      doc.fontSize(14).font("Helvetica-Bold").text("Lab Tests Ordered:");
+      doc.fontSize(13).font("Helvetica-Bold").text("Advice:");
       doc.moveDown(0.2);
-      prescription.labTests.forEach((test, i) => {
-        doc.fontSize(12).font("Helvetica").text(`${i + 1}. ${test}`);
+      rx.advice.forEach((a) => {
+        doc.fontSize(11).font("Helvetica").text(`• ${a}`);
       });
+      doc.moveDown(0.3);
     }
 
-    // ── Notes ─────────────────────────────────────────────────────────────────
-    if (prescription.notes) {
-      doc.moveDown(0.5);
+    // Disclaimer
+    if (rx.disclaimer) {
       doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
       doc.moveDown(0.3);
-      doc.fontSize(12).font("Helvetica-Bold").text("Doctor's Notes:");
-      doc.font("Helvetica").text(prescription.notes);
+      doc.fontSize(9).fillColor("gray").text(rx.disclaimer, { align: "center" });
     }
-
-    // ── Footer ────────────────────────────────────────────────────────────────
-    doc.moveDown(2);
-    doc.fontSize(9).fillColor("gray")
-      .text("This prescription was generated electronically.", { align: "center" });
 
     doc.end();
   } catch (error) {
@@ -200,7 +273,6 @@ export const downloadPrescriptionPDF = async (req, res) => {
     }
   }
 };
-
 // =============================================================================
 // EXPORT FULL MEDICAL HISTORY AS PDF
 // =============================================================================

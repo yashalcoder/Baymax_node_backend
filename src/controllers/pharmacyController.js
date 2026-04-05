@@ -159,9 +159,11 @@ export const updatePharmacyLocation = async (req, res) => {
 // Get all medicines (FR-7.3)
 export const getMedicines = async (req, res) => {
   try {
+    console.log("Get medicines for pharmacy userId:", req.user);
     const pharmacy = await Pharmacy.findOne({ userId: req.user.id });
     if (!pharmacy) return res.status(404).json({ message: "Pharmacy not found" });
     res.json(pharmacy.medicines);
+    console.log("Medicines found:", pharmacy.medicines);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

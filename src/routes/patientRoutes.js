@@ -5,6 +5,7 @@ import {
   getMyPrescriptions,
   downloadPrescriptionPDF,
   exportMedicalHistoryPDF,
+  getAllPatients
 } from "../controllers/patientController.js";
 import { getMyMedicalHistory } from "../controllers/medicalHistoryController.js";
 

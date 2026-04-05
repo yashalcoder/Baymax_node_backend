@@ -21,27 +21,21 @@ const isLab = (req, res, next) => {
   next();
 };
 
-// Lab profile
-router.get("/profile", authenticateToken, isLab, getLabProfile);
+// ─── Lab owner (protected) ───────────────────────────────────────────────────
+router.get("/profile",          authenticateToken, isLab, getLabProfile);
 router.patch("/profile/location", authenticateToken, isLab, updateLabLocation);
 
-// Test catalog
-router.get("/tests", authenticateToken, isLab, getTests);
-router.post("/test", authenticateToken, isLab, addTest);
-router.put("/test/:testId", authenticateToken, isLab, updateTest);
-router.delete("/test/:testId", authenticateToken, isLab, deleteTest);
+// FIX: renamed from /tests → /my-tests so it no longer conflicts with
+// the public GET /tests route below.
+router.get("/my-tests",         authenticateToken, isLab, getTests);
+router.post("/test",            authenticateToken, isLab, addTest);
+router.put("/test/:testId",     authenticateToken, isLab, updateTest);
+router.delete("/test/:testId",  authenticateToken, isLab, deleteTest);
 
-// Patient search — no auth needed
-router.get("/search", searchLabTests);
-
-
-// ─────────────────────────────────────────────
-// PUBLIC  (patients / no auth required)
-// ─────────────────────────────────────────────
-router.get("/",       getAllLaboratories);     // GET /api/laboratories
-router.get("/tests",  getLabTests);            // GET /api/laboratories/tests
-router.get("/nearby", getNearbyLaboratories);  // GET /api/laboratories/nearby?lat=&lng=&tests=
-
-
+// ─── Public (patients, no auth) ──────────────────────────────────────────────
+router.get("/search",  searchLabTests);
+router.get("/",        getAllLaboratories);    // GET /api/laboratories
+router.get("/tests",   getLabTests);           // GET /api/laboratories/tests  ← now reachable
+router.get("/nearby",  getNearbyLaboratories); // GET /api/laboratories/nearby
 
 export default router;
