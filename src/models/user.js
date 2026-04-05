@@ -36,7 +36,7 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
 
-    // ── Added fields ──────────────────────────────────────────────────────────
+    // ── Demographic fields ────────────────────────────────────────────────────
     cnic: {
       type: String,
       default: null,
@@ -45,6 +45,11 @@ const UserSchema = new mongoose.Schema(
     gender: {
       type: String,
       enum: ["male", "female", "other", null],
+      default: null,
+    },
+
+    dateOfBirth: {
+      type: Date,
       default: null,
     },
   },
