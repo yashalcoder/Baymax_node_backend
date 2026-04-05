@@ -1,6 +1,8 @@
 import express from "express";
 import multer from "multer";
 import { authenticateToken } from "../middlewares/jwt.js";
+import { getConsultationsByDoctorId } from "../controllers/doctorControllers.js";
+
 import {
   registerDoctor,
   getDoctors,
@@ -24,4 +26,7 @@ doctorRouter.post("/register-doctor", upload.single("file"), registerDoctor);
 doctorRouter.get("/doctors", getDoctors);
 doctorRouter.put("/update/profile", authenticateToken, updateDoctorProfile);
 doctorRouter.get("/my-patients", authenticateToken, getAssignedPatients);
+
+
+doctorRouter.get("/getConsultations",authenticateToken, getConsultationsByDoctorId);
 export default doctorRouter;
