@@ -1,6 +1,5 @@
 import express from "express";
 import { authenticateToken } from "../middlewares/jwt.js";
-import { authMiddleware } from "../middlewares/jwt.js";
 import {
   getAllPharmacies,
   getNearbyPharmacies,
@@ -33,18 +32,9 @@ router.delete("/medicine/:medicineId", authenticateToken, isPharmacy, deleteMedi
 
 // Patient search — no auth needed
 router.get("/search", searchMedicines);
-// Reusable role guard — only pharmacy accounts pass through
-const pharmacyOnly = (req, res, next) => {
-  if (req.user?.role !== "pharmacy")
-    return res.status(403).json({ message: "Forbidden: pharmacy accounts only" });
-  next();
-};
 
-// ─────────────────────────────────────────────
-// PUBLIC  (patients / no auth required)
-// ─────────────────────────────────────────────
-router.get("/",       getAllPharmacies);     // GET /api/pharmacies
-router.get("/nearby",  getNearbyPharmacies);
-router.get("/profile", authMiddleware, pharmacyOnly, getPharmacyProfile);
+// Public routes
+router.get("/", getAllPharmacies);
+router.get("/nearby", getNearbyPharmacies);
 
 export default router;

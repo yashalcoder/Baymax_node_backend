@@ -212,16 +212,24 @@ export const getTests = async (req, res) => {
 
 export const addTest = async (req, res) => {
   try {
-    const { name, category, price } = req.body;
+    const { name, category, price, code, sampleType, turnaroundValue, turnaroundUnit } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({ message: "Test name and price are required" });
     }
 
+    if (name.trim().length < 3) {
+      return res.status(400).json({ message: "Test name must be at least 3 characters" });
+    }
+
+    if (price <= 0) {
+      return res.status(400).json({ message: "Price must be greater than 0" });
+    }
+
     const lab = await Laboratory.findOne({ userId: req.user.id });
     if (!lab) return res.status(404).json({ message: "Laboratory not found" });
 
-    lab.tests.push({ name, category, price });
+    lab.tests.push({ name, category, price, code, sampleType, turnaroundValue, turnaroundUnit });
     lab.updatedAt = Date.now();
     await lab.save();
 
