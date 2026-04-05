@@ -380,9 +380,11 @@ export const updateDoctorProfile = async (req, res) => {
 };
 export const getAssignedPatients = async (req, res) => {
   try {
+    console.log("Get assigned patients for doctor userId:", req.user);
     const doctorUserId = req.user.id;
 
     const doctor = await Doctor.findOne({ userId: doctorUserId });
+    console.log("Found doctor:", doctor);
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found" });
     }
@@ -409,6 +411,89 @@ export const getAssignedPatients = async (req, res) => {
       status: "success",
       count: formatted.length,
       data: formatted
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+export const dischargePatient = async (req, res) => {
+  try {
+    const doctorUserId = req.user.id;
+    const { patientId } = req.params;
+
+    // Doctor dhundo
+    const doctor = await Doctor.findOne({ userId: doctorUserId });
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+    
+    // Patient dhundo
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    // Check karo k yeh patient is doctor ka hi hai
+    if (patient.assignedDoctor?.toString() !== doctor._id.toString()) {
+      return res.status(403).json({ message: "Yeh patient tumhara assigned nahi hai" });
+    }
+
+    // 1. Patient se assignedDoctor hata do
+    await Patient.findByIdAndUpdate(patientId, {
+      assignedDoctor: null
+    });
+
+    // 2. Doctor ki patientsAssigned array se nikal do
+    await Doctor.findByIdAndUpdate(doctor._id, {
+      $pull: { patientsAssigned: patient._id }
+    });
+
+    res.json({
+      status: "success",
+      message: "Patient successfully discharged",
+      data: { patientId }
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+export const getMostRecentAssignedPatient = async (req, res) => {
+  try {
+    const doctorUserId = req.user.id;
+
+    const doctor = await Doctor.findOne({ userId: doctorUserId });
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    // Sirf ek patient — sabse latest assigned
+    const patient = await Patient.findOne({
+      assignedDoctor: doctor._id
+    })
+      .sort({ createdAt: -1}) // ✅ oldest pehle
+      .populate("userId", "name email contact address");
+
+    if (!patient) {
+      return res.status(404).json({ message: "No patients assigned yet" });
+    }
+
+    res.json({
+      status: "success",
+      data: {
+        patientId: patient._id,
+        fullName: patient.userId?.name,
+        email: patient.userId?.email,
+        contact: patient.userId?.contact,
+        address: patient.userId?.address,
+        bloodGroup: patient.bloodGroup,
+        allergies: patient.allergies,
+        majorDisease: patient.majorDisease,
+        currentMedications: patient.currentMedications,
+        latestVitals: patient.vitals?.slice(-1)[0] || null,
+        assignedAt: patient.createdAt
+      }
     });
 
   } catch (error) {

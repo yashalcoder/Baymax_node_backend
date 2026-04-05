@@ -5,6 +5,7 @@ import {
   getMyPrescriptions,
   downloadPrescriptionPDF,
   exportMedicalHistoryPDF,
+  getAllPatients
 } from "../controllers/patientController.js";
 import { getMyMedicalHistory } from "../controllers/medicalHistoryController.js";
 
@@ -25,5 +26,5 @@ router.get("/prescription/:prescriptionId/pdf",     authMiddleware, downloadPres
 router.get("/my-medical-history",                   authMiddleware, getMyMedicalHistory);
 // GET /api/patient/medical-history/export  — unchanged, backend was already correct
 router.get("/medical-history/export",               authMiddleware, exportMedicalHistoryPDF);
-
+router.get("/getPatients",                       authMiddleware, getAllPatients);
 export default router;

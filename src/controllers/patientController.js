@@ -37,14 +37,60 @@ export const getMyPatientDashboard = async (req, res) => {
 // =============================================================================
 export const getAllPatients = async (req, res) => {
   try {
-    const patients = await Patient.find().populate(
-      "userId",
-      "name email contact address"
-    );
-    res.status(200).json({ success: true, count: patients.length, patients });
+    // Query params
+    const {
+      page = 1,
+      limit = 0, // 0 = no pagination (return all)
+      search = "",
+      sortBy = "createdAt",
+      order = "desc",
+    } = req.query;
+
+    // 🔍 Filtering (search by name/email/contact)
+    let query = {};
+
+    if (search) {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { contact: { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    // 📊 Sorting
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    // 📦 Base query
+    let patientQuery = Patient.find(query)
+      .populate("userId", "name email contact address")
+      .sort({ [sortBy]: sortOrder });
+
+    // 📄 Pagination (only if limit > 0)
+    if (limit > 0) {
+      const skip = (page - 1) * limit;
+      patientQuery = patientQuery.skip(skip).limit(Number(limit));
+    }
+
+    const patients = await patientQuery;
+
+    // 📊 Total count (for frontend pagination)
+    const total = await Patient.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      total,
+      page: Number(page),
+      pages: limit > 0 ? Math.ceil(total / limit) : 1,
+      count: patients.length,
+      patients,
+    });
   } catch (error) {
     console.error("❌ Error fetching patients:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
   }
 };
 
