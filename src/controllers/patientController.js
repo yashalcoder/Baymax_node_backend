@@ -1,6 +1,9 @@
 import Patient        from "../models/Patient.js";
 import User           from "../models/user.js";
+import Prescription      from "../models/Prescription.js";
+
 import MedicalHistory from "../models/MedicalHistory.js";
+import Doctor from "../models/doctor.js";
 
 import PDFDocument    from "pdfkit";
 import Consultation from "../models/Consultation.js";
@@ -118,7 +121,6 @@ export const getPatientById = async (req, res) => {
 // GET MY PRESCRIPTIONS  (real data from DB)
 // =============================================================================
 
-
 export const getMyPrescriptions = async (req, res) => {
   try {
     const patient = await Patient.findOne({ userId: req.user.id });
@@ -127,43 +129,44 @@ export const getMyPrescriptions = async (req, res) => {
     }
 
     const consultations = await Consultation.find({ patientId: patient._id })
-  .populate({
-    path: "doctorId",  // Doctor document
-    select: "firstName lastName userId",
-    populate: { path: "userId", select: "name email contact" }, // User document
-  })
-  .sort({ createdAt: -1 });
-  console.log("doctorId populated:", JSON.stringify(consultations[0]?.doctorId, null, 2))
+      .sort({ createdAt: -1 });
 
-const prescriptions = consultations
-  .filter((c) => c.prescription?.diagnosis)
-  .map((c) => {
-    const d = c.doctorId;
-    // Doctor has firstName+lastName, fallback to User.name
-    const doctorName = d
-      ? `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.userId?.name || "N/A"
-      : "N/A";
+    const prescriptions = await Promise.all(
+      consultations
+        .filter((c) => c.prescription?.diagnosis)
+        .map(async (c) => {
 
-    return {
-      _id:        c._id,
-      createdAt:  c.createdAt,
-      doctor:     doctorName,   
-      diagnosis:  c.prescription.diagnosis,
-      medicines:  c.prescription.prescription.map((m) => ({
-        name:        m.medicine,
-        type:        m.type,
-        dosage:      m.dosage,
-        duration:    m.duration,
-        precautions: m.precautions,
-      })),
-      advice:     c.prescription.advice,
-      disclaimer: c.prescription.disclaimer,
-      diseases:   c.extractedEntities?.diseases,
-      severity:   c.extractedEntities?.severity,
-    };
-  });
+          let doctorName = "N/A";
+          if (c.doctorId) {
+            // ✅ doctorId = User._id — Doctor table mein userId se dhundo
+            const doctor = await Doctor.findOne({ userId: c.doctorId }).select("firstName lastName");
+            if (doctor) {
+              doctorName = `${doctor.firstName || ""} ${doctor.lastName || ""}`.trim() || "N/A";
+            }
+          }
+
+          return {
+            _id:        c._id,
+            createdAt:  c.createdAt,
+            doctor:     doctorName,
+            diagnosis:  c.prescription.diagnosis,
+            medicines:  c.prescription.prescription?.map((m) => ({
+              name:        m.medicine,
+              type:        m.type,
+              dosage:      m.dosage,
+              duration:    m.duration,
+              precautions: m.precautions,
+            })) || [],
+            advice:     c.prescription.advice,
+            disclaimer: c.prescription.disclaimer,
+            diseases:   c.extractedEntities?.diseases,
+            severity:   c.extractedEntities?.severity,
+          };
+        })
+    );
 
     return res.status(200).json({ success: true, prescriptions });
+
   } catch (error) {
     console.error("❌ Error fetching prescriptions:", error);
     res.status(500).json({ success: false, message: "Server Error" });
