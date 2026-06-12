@@ -7,10 +7,10 @@ import patientRoutes    from "./routes/patientRoutes.js";
 import assistantRouter  from "./routes/assistantRoutes.js";
 import pharmacyRouter   from "./routes/pharmacyRoutes.js";
 import laboratoryRouter from "./routes/laboratoryRoutes.js";
-import transcribeRoutes from "./routes/transcribeRoutes.js";
+// import transcribeRoutes from "./routes/transcribeRoutes.js";//deloyment
 import diagnosisRoutes  from "./routes/diagnosisRoutes.js";
 import prescription     from "./routes/prescription.js";
-import ocrRoute         from "./routes/ocr.js";
+// import ocrRoute         from "./routes/ocr.js";//deployment
 import notificationRouter from "./routes/notificationRoutes.js"; // ← NEW
 
 const app = express();
