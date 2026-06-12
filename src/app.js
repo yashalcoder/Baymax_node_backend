@@ -16,7 +16,11 @@ import notificationRouter from "./routes/notificationRoutes.js"; // ← NEW
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+// app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.FRONTEND_URL,
+].filter(Boolean); //for deployment
 app.use(express.json());
 
 // ── Static files ──────────────────────────────────────────────────────────────
@@ -29,12 +33,31 @@ app.use("/api/patient",       patientRoutes);
 app.use("/api/assistants",    assistantRouter);
 app.use("/api/pharmacies",    pharmacyRouter);
 app.use("/api/laboratory",    laboratoryRouter);
-app.use("/api",               transcribeRoutes);
+// app.use("/api",               transcribeRoutes);
 app.use("/api/diagnosis",     diagnosisRoutes);
 app.use("/api/prescription",  prescription);
-app.use("/api/ocr",           ocrRoute);
+// app.use("/api/ocr",           ocrRoute);
 app.use("/api/notifications", notificationRouter); // ← NEW
+// ── OCR Route (safe - Vercel pe crash nahi karega) ────────────────────────────
+try {
+  const { default: ocrRoute } = await import("./routes/ocr.js");
+  app.use("/api/ocr", ocrRoute);
+  console.log("OCR route loaded");
+} catch (err) {
+  console.warn("OCR not available:", err.message);
+  app.use("/api/ocr", (_req, res) => {
+    res.status(503).json({ message: "OCR service not available on this server" });
+  });
+}
 
+// ── Transcribe Route (safe) ───────────────────────────────────────────────────
+try {
+  const { default: transcribeRoutes } = await import("./routes/transcribeRoutes.js");
+  app.use("/api", transcribeRoutes);
+  console.log("Transcribe route loaded");
+} catch (err) {
+  console.warn("Transcribe not available:", err.message);
+}
 app.get("/", (_req, res) => {
   res.json({ message: "Node API running successfully" });
 });
