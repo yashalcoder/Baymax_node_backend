@@ -1,8 +1,9 @@
-import User      from "../models/user.js";
-import Patient   from "../models/Patient.js";
-import Assistant from "../models/Assistant.js";
-import Doctor    from "../models/Doctor.js";
-import bcrypt    from "bcryptjs";
+import User         from "../models/user.js";
+import Patient      from "../models/Patient.js";
+import Assistant    from "../models/Assistant.js";
+import Doctor       from "../models/Doctor.js";
+import Notification from "../models/Notification.js";
+import bcrypt       from "bcryptjs";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 function requireAssistant(req, res) {
@@ -13,9 +14,24 @@ function requireAssistant(req, res) {
   return true;
 }
 
+// ─── Internal helper: create a notification for a doctor ─────────────────────
+async function notifyDoctor(doctorUserId, { type, title, message, data }) {
+  try {
+    await Notification.create({
+      recipientId:   doctorUserId,
+      recipientRole: "doctor",
+      type,
+      title,
+      message,
+      data,
+    });
+  } catch (err) {
+    // Non-fatal — log but don't crash the main request
+    console.error("⚠️  Failed to create notification:", err.message);
+  }
+}
+
 // ─── GET ALL DOCTORS (for dropdowns) ─────────────────────────────────────────
-// Normalises firstName/lastName vs User.name so the frontend always gets
-// a consistent { _id, displayName, specialization } shape.
 export const getDoctors = async (req, res) => {
   try {
     if (!requireAssistant(req, res)) return;
@@ -23,12 +39,10 @@ export const getDoctors = async (req, res) => {
     const doctors = await Doctor.find({}).populate("userId", "name email").lean();
 
     const data = doctors.map((d) => {
-      const firstName = d.firstName || "";
-      const lastName  = d.lastName  || "";
+      const firstName  = d.firstName || "";
+      const lastName   = d.lastName  || "";
       const displayName =
-        (firstName + " " + lastName).trim() ||
-        d.userId?.name ||
-        "Doctor";
+        (firstName + " " + lastName).trim() || d.userId?.name || "Doctor";
 
       return {
         _id:            d._id,
@@ -89,7 +103,7 @@ export const searchPatients = async (req, res) => {
       userId: { $in: users.map((u) => u._id) },
     })
       .populate("userId", "name email contact address")
-      .populate("assignedDoctor");  // include current doctor info
+      .populate("assignedDoctor");
 
     return res.json({ status: "success", count: patients.length, data: patients });
   } catch (error) {
@@ -111,7 +125,7 @@ export const assignDoctor = async (req, res) => {
     }
 
     const [patient, doctor, assistant] = await Promise.all([
-      Patient.findById(patientId),
+      Patient.findById(patientId).populate("userId", "name email"),
       Doctor.findById(doctorId),
       Assistant.findOne({ userId: req.user.id }),
     ]);
@@ -144,6 +158,21 @@ export const assignDoctor = async (req, res) => {
       assistant.patientsManaged.push(patient._id);
       await assistant.save();
     }
+
+    // ── 🔔 Notify the doctor ──────────────────────────────────────────────────
+    const patientName  = patient.userId?.name  || "Unknown Patient";
+    const patientEmail = patient.userId?.email || "";
+
+    await notifyDoctor(doctor.userId, {
+      type:    "patient_assigned",
+      title:   "New Patient Assigned",
+      message: `${patientName} (${patientEmail}) has been assigned to you by the assistant.`,
+      data: {
+        patientId:    patient._id,
+        patientName,
+        patientEmail,
+      },
+    });
 
     return res.json({
       status:  "success",
@@ -202,6 +231,18 @@ export const addPatient = async (req, res) => {
 
     assistant.patientsManaged.push(patient._id);
     await assistant.save();
+
+    // ── 🔔 Notify the doctor ──────────────────────────────────────────────────
+    await notifyDoctor(doctor.userId, {
+      type:    "patient_assigned",
+      title:   "New Patient Assigned",
+      message: `${name} (${email}) has been registered and assigned to you by the assistant.`,
+      data: {
+        patientId:    patient._id,
+        patientName:  name,
+        patientEmail: email,
+      },
+    });
 
     return res.status(201).json({
       status:  "success",
