@@ -26,6 +26,7 @@ app.use("/api/doctors", doctorRouter);
 app.use("/api/patient", patientRoutes);
 app.use("/api/assistants", assistantRouter);
 app.use("/api/pharmacies", pharmacyRouter);
+app.use("/api/pharmacy", pharmacyRouter);
 app.use("/api/laboratory", laboratoryRouter);
 app.use("/api", transcribeRoutes);
 app.use('/api/diagnosis', diagnosisRoutes);

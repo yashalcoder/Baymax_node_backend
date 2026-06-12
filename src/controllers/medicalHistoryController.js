@@ -1,5 +1,7 @@
 import MedicalHistory from "../models/MedicalHistory.js";
 import Patient        from "../models/Patient.js";
+import Prescription from "../models/Prescription.js";
+
 import openai from "../config/openai.js";
 import Tesseract from "tesseract.js";
 import fs from "fs";
@@ -77,7 +79,7 @@ export const getMyMedicalHistory = async (req, res) => {
       notes:         record.notes,
       createdAt:     record.createdAt,
     }));
-
+    console.log(`Fetched medical history for patient ${patient._id}:`, formattedHistory);
     res.status(200).json({ success: true, data: formattedHistory });
   } catch (error) {
     console.error("❌ getMyMedicalHistory error:", error);
