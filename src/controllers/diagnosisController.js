@@ -1,6 +1,6 @@
 import express from 'express';
 import Consultation from '../models/Consultation.js';
-import Doctor from '../models/Doctor.js';
+import Doctor from '../models/doctor.js';
 import Patient from '../models/Patient.js';
 import Users from '../models/user.js';
 // Helper functions
