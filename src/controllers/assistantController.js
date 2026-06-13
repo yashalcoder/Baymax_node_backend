@@ -1,7 +1,7 @@
 import User         from "../models/user.js";
 import Patient      from "../models/Patient.js";
 import Assistant    from "../models/Assistant.js";
-import Doctor       from "../models/Doctor.js";
+import Doctor       from "../models/doctor.js";
 import Notification from "../models/Notification.js";
 import bcrypt       from "bcryptjs";
 
