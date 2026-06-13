@@ -3,7 +3,7 @@ import mongoose    from "mongoose";
 import User        from "../models/user.js";
 import Assistant   from "../models/Assistant.js";
 import Patient     from "../models/Patient.js";
-import Doctor      from "../models/Doctor.js";
+import Doctor      from "../models/doctor.js";
 import Pharmacy    from "../models/Pharmacy.js";
 import Laboratory  from "../models/Laboratory.js";
 import { generateToken } from "../middlewares/jwt.js";
