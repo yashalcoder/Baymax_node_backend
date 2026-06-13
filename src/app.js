@@ -79,6 +79,7 @@ import express from "express";
 import path from "path";
 import authRoutes from "./routes/authRoutes.js";
 import doctorRouter from "./routes/doctorRoutes.js";
+import patientRoutes from "./routes/patientRoutes.js";
 
 const app = express();
 app.use(express.json());
@@ -86,6 +87,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/doctors", doctorRouter);
+app.use("/api/patient", patientRoutes);
 
 app.get("/", (_req, res) => {
   res.json({ message: "Node API running successfully" });
