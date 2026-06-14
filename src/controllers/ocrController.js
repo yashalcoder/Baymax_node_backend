@@ -3,7 +3,6 @@ import Tesseract from "tesseract.js";
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import pdfPoppler from "pdf-poppler";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
@@ -76,6 +75,16 @@ const extractTextFromScannedPDF = async (buffer) => {
   try {
     fs.writeFileSync(pdfPath, buffer);
     const prefix = `page_${timestamp}`;
+
+    // Dynamic import to prevent startup crash on Linux/Vercel where pdf-poppler is not supported
+    let pdfPopplerModule;
+    try {
+      pdfPopplerModule = await import("pdf-poppler");
+    } catch (importErr) {
+      throw new Error("PDF-to-Image conversion (pdf-poppler) is not supported on this serverless platform.");
+    }
+    const pdfPoppler = pdfPopplerModule.default || pdfPopplerModule;
+
     await pdfPoppler.convert(pdfPath, {
       format: "png",
       out_dir: UPLOADS_DIR,
