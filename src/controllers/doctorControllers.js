@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import Doctor from "../models/doctor.js";
 import Patient from "../models/Patient.js";
 import User from "../models/user.js";
+import Prescription from "../models/Prescription.js";
+import Notification from "../models/Notification.js";
 import ffmpeg from "fluent-ffmpeg";
 import path from "path";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
@@ -548,5 +550,67 @@ export const getConsultationsByDoctorId = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+
+export const savePrescription = async (req, res) => {
+  try {
+    const { patientId, medicines, notes, labTests } = req.body;
+    // patientId here is Patient._id (sent from the frontend dropdown)
+
+    if (!patientId) {
+      return res.status(400).json({ message: "patientId is required" });
+    }
+    if (!medicines || medicines.length === 0) {
+      return res.status(400).json({ message: "At least one medicine is required" });
+    }
+
+    // 1. Find Patient doc → we need patient.userId (User._id) for:
+    //    a) Prescription.patientId  (schema expects User._id)
+    //    b) Notification.recipientId
+    const patient = await Patient.findById(patientId).populate("userId", "name email");
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    // 2. Doctor's display name for the notification message
+    const doctor = await Doctor.findOne({ userId: req.user.id }).populate("userId", "name");
+    const doctorName = doctor?.userId?.name || "Your doctor";
+
+    // 3. Save Prescription  (patientId = User._id, doctorId = User._id)
+    const prescription = await Prescription.create({
+      patientId: patient.userId._id,   // ← User._id as per schema
+      doctorId:  req.user.id,           // ← logged-in doctor's User._id
+      medicines: medicines || [],
+      notes:     notes     || "",
+      labTests:  labTests  || [],
+    });
+
+    // 4. Notify the patient (non-fatal — never crashes the main request)
+    try {
+      await Notification.create({
+        recipientId:   patient.userId._id,  // Patient's User._id
+        recipientRole: "patient",
+        type:          "prescription_sent",
+        title:         "New Prescription",
+        message:       `Dr. ${doctorName} has sent you a new prescription.`,
+        data: {
+          prescriptionId: prescription._id,
+          doctorName,
+        },
+      });
+    } catch (notifErr) {
+      console.error("⚠️  Patient notification failed:", notifErr.message);
+    }
+
+    return res.status(201).json({
+      status:  "success",
+      message: "Prescription saved and patient notified",
+      data:    prescription,
+    });
+  } catch (error) {
+    console.error("savePrescription error:", error);
+    return res.status(500).json({ message: error.message || "Server error" });
   }
 };

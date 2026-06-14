@@ -121,6 +121,11 @@ export const getPatientById = async (req, res) => {
 // GET MY PRESCRIPTIONS  (real data from DB)
 // =============================================================================
 
+// ── REPLACE getMyPrescriptions in patientController.js ───────────────────────
+// This version merges BOTH sources:
+//   1. Consultation.prescription  (AI-generated from transcription)
+//   2. Prescription model         (manually sent by doctor via "Send to Patient")
+
 export const getMyPrescriptions = async (req, res) => {
   try {
     const patient = await Patient.findOne({ userId: req.user.id });
@@ -128,41 +133,61 @@ export const getMyPrescriptions = async (req, res) => {
       return res.status(404).json({ success: false, message: "Patient profile not found" });
     }
 
+    // ── Source 1: AI prescriptions from Consultations ─────────────────────────
     const consultations = await Consultation.find({ patientId: patient._id })
       .sort({ createdAt: -1 });
 
-    const prescriptions = await Promise.all(
+    const aiPrescriptions = await Promise.all(
       consultations
         .filter((c) => c.prescription?.diagnosis)
         .map(async (c) => {
-
           let doctorName = "N/A";
           if (c.doctorId) {
-            // ✅ doctorId = User._id — Doctor table mein userId se dhundo
             const doctor = await Doctor.findOne({ userId: c.doctorId }).select("firstName lastName");
             if (doctor) {
               doctorName = `${doctor.firstName || ""} ${doctor.lastName || ""}`.trim() || "N/A";
             }
           }
-
           return {
             _id:        c._id,
+            source:     "consultation",        // ← lets frontend distinguish
             createdAt:  c.createdAt,
-            doctor:     doctorName,
+            doctorId:   { name: doctorName },
             diagnosis:  c.prescription.diagnosis,
             medicines:  c.prescription.prescription?.map((m) => ({
               name:        m.medicine,
               type:        m.type,
               dosage:      m.dosage,
               duration:    m.duration,
+              frequency:   "",
               precautions: m.precautions,
             })) || [],
-            advice:     c.prescription.advice,
-            disclaimer: c.prescription.disclaimer,
-            diseases:   c.extractedEntities?.diseases,
-            severity:   c.extractedEntities?.severity,
+            notes:      c.prescription.advice?.join(", ") || "",
+            labTests:   [],
           };
         })
+    );
+
+    // ── Source 2: Manual prescriptions sent by doctor ─────────────────────────
+    // Prescription.patientId = User._id, so use req.user.id directly
+    const manualPrescriptions = await Prescription.find({ patientId: req.user.id })
+      .populate({ path: "doctorId", select: "name email", model: "User" })
+      .sort({ createdAt: -1 });
+
+    const manualMapped = manualPrescriptions.map((rx) => ({
+      _id:       rx._id,
+      source:    "manual",                   // ← lets frontend distinguish
+      createdAt: rx.createdAt,
+      doctorId:  { name: rx.doctorId?.name || "N/A", contact: rx.doctorId?.email || "" },
+      diagnosis: "",
+      medicines: rx.medicines || [],
+      notes:     rx.notes     || "",
+      labTests:  rx.labTests  || [],
+    }));
+
+    // ── Merge and sort newest first ───────────────────────────────────────────
+    const prescriptions = [...aiPrescriptions, ...manualMapped].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 
     return res.status(200).json({ success: true, prescriptions });

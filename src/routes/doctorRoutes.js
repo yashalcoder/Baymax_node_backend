@@ -9,7 +9,8 @@ import {
   updateDoctorProfile,
   getAssignedPatients,
   dischargePatient,
-  getMostRecentAssignedPatient
+  getMostRecentAssignedPatient,
+  savePrescription
 } from "../controllers/doctorControllers.js";
 
 const doctorRouter = express.Router();
@@ -31,4 +32,5 @@ doctorRouter.get("/my-patients", authenticateToken, getAssignedPatients);
 doctorRouter.get("/old-patient", authenticateToken, getMostRecentAssignedPatient);
 doctorRouter.get("/getConsultations",authenticateToken, getConsultationsByDoctorId);
 doctorRouter.delete("/discharge/:patientId", authenticateToken, dischargePatient);
+doctorRouter.post("/prescriptions", authenticateToken, savePrescription);
 export default doctorRouter;
