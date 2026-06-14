@@ -1,14 +1,16 @@
-import express       from "express";
+import express      from "express";
+import mongoose     from "mongoose";
 import { authMiddleware } from "../middlewares/jwt.js";
-import Notification  from "../models/Notification.js";
+import Notification from "../models/Notification.js";
 
 const notificationRouter = express.Router();
 
-// ── GET /api/notifications  — fetch my notifications (latest 30) ───────────
+// ── GET /api/notifications ─────────────────────────────────────────────────
 notificationRouter.get("/", authMiddleware, async (req, res) => {
   try {
     const notifications = await Notification.find({
-      recipientId: req.user.id,
+      recipientId:   new mongoose.Types.ObjectId(req.user.id),  // ← fix type mismatch
+      recipientRole: req.user.role,                              // ← only see your own role's notifications
     })
       .sort({ createdAt: -1 })
       .limit(30)
@@ -19,8 +21,8 @@ notificationRouter.get("/", authMiddleware, async (req, res) => {
     return res.json({
       status: "success",
       unreadCount,
-      count:  notifications.length,
-      data:   notifications,
+      count: notifications.length,
+      data:  notifications,
     });
   } catch (error) {
     console.error("Get notifications error:", error);
@@ -28,11 +30,14 @@ notificationRouter.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// ── PATCH /api/notifications/:id/read  — mark one as read ─────────────────
+// ── PATCH /api/notifications/:id/read ─────────────────────────────────────
 notificationRouter.patch("/:id/read", authMiddleware, async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, recipientId: req.user.id },
+      {
+        _id:         req.params.id,
+        recipientId: new mongoose.Types.ObjectId(req.user.id),
+      },
       { isRead: true },
       { new: true }
     );
@@ -48,11 +53,15 @@ notificationRouter.patch("/:id/read", authMiddleware, async (req, res) => {
   }
 });
 
-// ── PATCH /api/notifications/read-all  — mark all as read ─────────────────
+// ── PATCH /api/notifications/read-all ─────────────────────────────────────
 notificationRouter.patch("/read-all", authMiddleware, async (req, res) => {
   try {
     await Notification.updateMany(
-      { recipientId: req.user.id, isRead: false },
+      {
+        recipientId:   new mongoose.Types.ObjectId(req.user.id),
+        recipientRole: req.user.role,
+        isRead:        false,
+      },
       { isRead: true }
     );
 
