@@ -152,7 +152,7 @@ export const getMyPrescriptions = async (req, res) => {
             _id:        c._id,
             source:     "consultation",        // ← lets frontend distinguish
             createdAt:  c.createdAt,
-            doctorId:   { name: doctorName },
+            doctor:   doctorName ,
             diagnosis:  c.prescription.diagnosis,
             medicines:  c.prescription.prescription?.map((m) => ({
               name:        m.medicine,
@@ -175,15 +175,15 @@ export const getMyPrescriptions = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const manualMapped = manualPrescriptions.map((rx) => ({
-      _id:       rx._id,
-      source:    "manual",                   // ← lets frontend distinguish
-      createdAt: rx.createdAt,
-      doctorId:  { name: rx.doctorId?.name || "N/A", contact: rx.doctorId?.email || "" },
-      diagnosis: "",
-      medicines: rx.medicines || [],
-      notes:     rx.notes     || "",
-      labTests:  rx.labTests  || [],
-    }));
+  _id:       rx._id,
+  source:    "manual",
+  createdAt: rx.createdAt,
+  doctor:    rx.doctorId?.name || "N/A",   // ← plain string, matches frontend
+  diagnosis: "",
+  medicines: rx.medicines || [],
+  notes:     rx.notes     || "",
+  labTests:  rx.labTests  || [],
+}));
 
     // ── Merge and sort newest first ───────────────────────────────────────────
     const prescriptions = [...aiPrescriptions, ...manualMapped].sort(
