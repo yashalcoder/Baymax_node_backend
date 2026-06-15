@@ -124,7 +124,8 @@ export const getMyPrescriptions = async (req, res) => {
         .map(async (c) => {
           let doctorName = "N/A";
           if (c.doctorId) {
-            const doctor = await Doctor.findOne({ userId: c.doctorId }).select("firstName lastName");
+            // Consultation.doctorId refs Doctor model directly (Doctor._id)
+            const doctor = await Doctor.findById(c.doctorId).select("firstName lastName");
             if (doctor) {
               doctorName = `${doctor.firstName || ""} ${doctor.lastName || ""}`.trim() || "N/A";
             }
@@ -153,15 +154,24 @@ export const getMyPrescriptions = async (req, res) => {
     const manualPrescriptions = await Prescription.find({ patientId: req.user.id })
       .sort({ createdAt: -1 });
 
+    console.log("🔍 [getMyPrescriptions] req.user.id:", req.user.id);
+    console.log("🔍 [getMyPrescriptions] manualPrescriptions count:", manualPrescriptions.length);
+    manualPrescriptions.forEach((rx, i) => {
+      console.log(`   rx[${i}] _id=${rx._id} doctorId=${rx.doctorId} patientId=${rx.patientId}`);
+    });
+
     // Resolve doctor name via Doctor model (doctorId stores the doctor's User._id)
     const manualMapped = await Promise.all(
       manualPrescriptions.map(async (rx) => {
         let doctorName = "N/A";
         if (rx.doctorId) {
           const doctor = await Doctor.findOne({ userId: rx.doctorId }).select("firstName lastName");
+          console.log(`   🩺 rx.doctorId=${rx.doctorId} → Doctor found:`, doctor ? `${doctor.firstName} ${doctor.lastName}` : "NOT FOUND");
           if (doctor) {
             doctorName = `${doctor.firstName} ${doctor.lastName}`.trim();
           }
+        } else {
+          console.log(`   ⚠️  rx.doctorId is null/undefined for prescription ${rx._id}`);
         }
         return {
           _id:       rx._id,
