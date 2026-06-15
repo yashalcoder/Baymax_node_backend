@@ -557,7 +557,6 @@ export const getConsultationsByDoctorId = async (req, res) => {
 export const savePrescription = async (req, res) => {
   try {
     const { patientId, medicines, notes, labTests } = req.body;
-    // patientId here is Patient._id (sent from the frontend dropdown)
 
     if (!patientId) {
       return res.status(400).json({ message: "patientId is required" });
@@ -566,42 +565,49 @@ export const savePrescription = async (req, res) => {
       return res.status(400).json({ message: "At least one medicine is required" });
     }
 
-    // 1. Find Patient doc → we need patient.userId (User._id) for:
-    //    a) Prescription.patientId  (schema expects User._id)
-    //    b) Notification.recipientId
-    const patient = await Patient.findById(patientId).populate("userId", "name email");
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ message: "Invalid patientId format" });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(patientId);
+
+    console.log("patientId received:", patientId);
+
+    const patient = await Patient.findOne({
+      $or: [
+        { _id:    objectId },
+        { userId: objectId },
+      ]
+    }).populate("userId", "name email");
+
+    console.log("Patient found:", patient?._id, "| userId:", patient?.userId?._id);
+
     if (!patient) {
       return res.status(404).json({ message: "Patient not found" });
     }
 
-    // 2. Doctor's display name for the notification message
     const doctor = await Doctor.findOne({ userId: req.user.id }).populate("userId", "name");
     const doctorName = doctor?.userId?.name || "Your doctor";
 
-    // 3. Save Prescription  (patientId = User._id, doctorId = User._id)
     const prescription = await Prescription.create({
-      patientId: patient.userId._id,   // ← User._id as per schema
-      doctorId:  req.user.id,           // ← logged-in doctor's User._id
+      patientId: patient.userId._id,
+      doctorId:  req.user.id,
       medicines: medicines || [],
       notes:     notes     || "",
       labTests:  labTests  || [],
     });
 
-    // 4. Notify the patient (non-fatal — never crashes the main request)
     try {
       await Notification.create({
-        recipientId:   patient.userId._id,  // Patient's User._id
+        recipientId:   patient.userId._id,
         recipientRole: "patient",
         type:          "prescription_sent",
         title:         "New Prescription",
         message:       `Dr. ${doctorName} has sent you a new prescription.`,
-        data: {
-          prescriptionId: prescription._id,
-          doctorName,
-        },
+        data: { prescriptionId: prescription._id, doctorName },
       });
     } catch (notifErr) {
-      console.error("⚠️  Patient notification failed:", notifErr.message);
+      console.error("⚠️ Patient notification failed:", notifErr.message);
     }
 
     return res.status(201).json({
