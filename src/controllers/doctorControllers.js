@@ -571,8 +571,6 @@ export const savePrescription = async (req, res) => {
 
     const objectId = new mongoose.Types.ObjectId(patientId);
 
-    console.log("patientId received:", patientId);
-
     const patient = await Patient.findOne({
       $or: [
         { _id:    objectId },
@@ -580,21 +578,16 @@ export const savePrescription = async (req, res) => {
       ]
     }).populate("userId", "name email");
 
-    console.log("Patient found:", patient?._id, "| userId:", patient?.userId?._id);
-
     if (!patient) {
       return res.status(404).json({ message: "Patient not found" });
     }
 
-   let doctorName = "Your doctor";
-
-if (req.user.role === "doctor") {
-  const doctor = await Doctor.findOne({ userId: req.user.id });
-  doctorName = doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : "Your doctor";
-} else if (req.user.role === "assistant") {
-  const user = await User.findById(req.user.id).select("name");
-  doctorName = user?.name || "Your assistant";
-}
+    // ── Doctor name — from Doctor model directly ──────────────────────────
+    let doctorName = "Your doctor";
+    const doctor = await Doctor.findOne({ userId: req.user.id });
+    if (doctor) {
+      doctorName = `${doctor.firstName} ${doctor.lastName}`.trim();
+    }
 
     const prescription = await Prescription.create({
       patientId: patient.userId._id,
