@@ -15,22 +15,29 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["patient_assigned", "patient_discharged", "vitals_added", "general"],
+      enum: [
+        "patient_assigned",
+        "patient_discharged",
+        "vitals_added",
+        "prescription_sent",  // ← added
+        "general",
+      ],
       default: "general",
     },
-    title: { type: String, required: true },
+    title:   { type: String, required: true },
     message: { type: String, required: true },
     data: {
-      patientId:   { type: mongoose.Schema.Types.ObjectId, ref: "Patient" },
-      patientName: { type: String },
-      patientEmail:{ type: String },
+      patientId:      { type: mongoose.Schema.Types.ObjectId, ref: "Patient" },
+      patientName:    { type: String },
+      patientEmail:   { type: String },
+      prescriptionId: { type: mongoose.Schema.Types.ObjectId, ref: "Prescription" }, // ← added
+      doctorName:     { type: String }, // ← added
     },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// TTL index — auto-delete notifications older than 30 days
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export default mongoose.models.Notification ||
