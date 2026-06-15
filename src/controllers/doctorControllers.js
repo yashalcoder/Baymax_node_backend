@@ -586,8 +586,15 @@ export const savePrescription = async (req, res) => {
       return res.status(404).json({ message: "Patient not found" });
     }
 
-   const doctorUser = await User.findById(req.user.id).select("name");
-   const doctorName = doctorUser?.name || "Your doctor";
+   let doctorName = "Your doctor";
+
+if (req.user.role === "doctor") {
+  const doctor = await Doctor.findOne({ userId: req.user.id });
+  doctorName = doctor ? `${doctor.firstName} ${doctor.lastName}`.trim() : "Your doctor";
+} else if (req.user.role === "assistant") {
+  const user = await User.findById(req.user.id).select("name");
+  doctorName = user?.name || "Your assistant";
+}
 
     const prescription = await Prescription.create({
       patientId: patient.userId._id,
