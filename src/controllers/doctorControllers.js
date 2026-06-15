@@ -599,12 +599,17 @@ export const savePrescription = async (req, res) => {
 
     try {
       await Notification.create({
-        recipientId:   patient.userId._id,
-        recipientRole: "patient",
+        recipientId:   patient.userId._id,   // ← patient's User._id
+        recipientRole: "patient",             // ← only patients see this
         type:          "prescription_sent",
         title:         "New Prescription",
         message:       `Dr. ${doctorName} has sent you a new prescription.`,
-        data: { prescriptionId: prescription._id, doctorName },
+        data: {
+          prescriptionId: prescription._id,
+          doctorName,
+          patientId:   patient._id,           // ← Patient._id
+          patientName: patient.userId.name,   // ← patient's display name
+        },
       });
     } catch (notifErr) {
       console.error("⚠️ Patient notification failed:", notifErr.message);
