@@ -586,8 +586,8 @@ export const savePrescription = async (req, res) => {
       return res.status(404).json({ message: "Patient not found" });
     }
 
-    const doctor = await Doctor.findOne({ userId: req.user.id }).populate("userId", "name");
-    const doctorName = doctor?.userId?.name || "Your doctor";
+   const doctorUser = await User.findById(req.user.id).select("name");
+   const doctorName = doctorUser?.name || "Your doctor";
 
     const prescription = await Prescription.create({
       patientId: patient.userId._id,
