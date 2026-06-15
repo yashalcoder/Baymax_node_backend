@@ -150,21 +150,31 @@ export const getMyPrescriptions = async (req, res) => {
     );
 
     // ── Source 2: Manual prescriptions sent by doctor ─────────────────────────
-    // ── Source 2: Manual prescriptions sent by doctor ─────────────────────────
-const manualPrescriptions = await Prescription.find({ patientId: req.user.id })
-  .populate({ path: "doctorId", select: "name email", model: "User" })
-  .sort({ createdAt: -1 });
+    const manualPrescriptions = await Prescription.find({ patientId: req.user.id })
+      .sort({ createdAt: -1 });
 
-const manualMapped = manualPrescriptions.map((rx) => ({
-  _id:       rx._id,
-  source:    "manual",
-  createdAt: rx.createdAt,
-  doctor:    rx.doctorId?.name || "N/A",
-  diagnosis: "",
-  medicines: rx.medicines || [],
-  notes:     rx.notes     || "",
-  labTests:  rx.labTests  || [],
-}));
+    // Resolve doctor name via Doctor model (doctorId stores the doctor's User._id)
+    const manualMapped = await Promise.all(
+      manualPrescriptions.map(async (rx) => {
+        let doctorName = "N/A";
+        if (rx.doctorId) {
+          const doctor = await Doctor.findOne({ userId: rx.doctorId }).select("firstName lastName");
+          if (doctor) {
+            doctorName = `${doctor.firstName} ${doctor.lastName}`.trim();
+          }
+        }
+        return {
+          _id:       rx._id,
+          source:    "manual",
+          createdAt: rx.createdAt,
+          doctor:    doctorName,
+          diagnosis: "",
+          medicines: rx.medicines || [],
+          notes:     rx.notes     || "",
+          labTests:  rx.labTests  || [],
+        };
+      })
+    );
     // ── Merge and sort newest first ───────────────────────────────────────────
     const prescriptions = [...aiPrescriptions, ...manualMapped].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
